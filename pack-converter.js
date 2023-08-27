@@ -79,14 +79,14 @@ function ChainPackChanges(from, to) {
  * - `undefined`: Unknown or not registered item
  */
 function Evaluate(changes, value) {
-    if (changes.Deleted.includes(value)) {
-        return null
+    if (changes.Added[value]) {
+        return value
     }
     if (changes.Renamed[value]) {
         return changes.Renamed[value]
     }
-    if (changes.Added[value]) {
-        return value
+    if (changes.Deleted.includes(value)) {
+        return null
     }
     return undefined
 }
@@ -307,7 +307,7 @@ function ConvertModels(inputFolder, outputFolder, changes, base, inputNamespaceF
             const parentPath = Path.join(outputNamespaceFolder, parent.relativePath)
 
             if (parent.relativePath !== 'item/generated' && !fs.existsSync(parentPath + '.json')) {
-                console.warn(`[PackConverter]: Parent for model "${name}" not found`)
+                console.warn(`[PackConverter]: Parent "${parent.relativePath}" for model "${Path.basename(inputFolder)}/${name}" not found`)
                 success = false
                 continue
             }

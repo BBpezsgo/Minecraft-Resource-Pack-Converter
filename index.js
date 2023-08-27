@@ -251,7 +251,7 @@ const bruh = () => {
     fs.writeFileSync(Path.join(__dirname, 'result', 'flattening-ids.js'), `(${JSON.stringify(res, null, ' ')})`, 'utf8')
 }
 
-// CheckFull('1.12', '1.13')
+        CheckFull('1.12', '1.13')
 
-const convertable = 'Cool Textures'
-PackConverter.Convert('1.20', '1.12', Packs[convertable], Path.join(VanillaResourcePacksPath, convertable))
+        const convertable = '1.20'
+        // PackConverter.Convert('1.20', '1.12', Packs[convertable], Path.join(VanillaResourcePacksPath, convertable))
