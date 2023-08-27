@@ -175,6 +175,34 @@ function CheckFull(versionA, versionB) {
     Check(modelsA.item, modelsB.item, changes, 'model', 'item')
     Check(modelsA.block, modelsB.block, changes, 'model', 'block')
 
+    // @ts-ignore
+    if (generatedResult.models.block.Added.length === 0) { generatedResult.models.block.Added = undefined }
+    // @ts-ignore
+    if (Object.keys(generatedResult.models.block.Renamed).length === 0) { generatedResult.models.block.Renamed = undefined }
+    // @ts-ignore
+    if (generatedResult.models.block.Deleted.length === 0) { generatedResult.models.block.Deleted = undefined }
+
+    // @ts-ignore
+    if (generatedResult.models.item.Added.length === 0) { generatedResult.models.item.Added = undefined }
+    // @ts-ignore
+    if (Object.keys(generatedResult.models.item.Renamed).length === 0) { generatedResult.models.item.Renamed = undefined }
+    // @ts-ignore
+    if (generatedResult.models.item.Deleted.length === 0) { generatedResult.models.item.Deleted = undefined }
+
+    // @ts-ignore
+    if (generatedResult.textures.block.Added.length === 0) { generatedResult.textures.block.Added = undefined }
+    // @ts-ignore
+    if (Object.keys(generatedResult.textures.block.Renamed).length === 0) { generatedResult.textures.block.Renamed = undefined }
+    // @ts-ignore
+    if (generatedResult.textures.block.Deleted.length === 0) { generatedResult.textures.block.Deleted = undefined }
+
+    // @ts-ignore
+    if (generatedResult.textures.item.Added.length === 0) { generatedResult.textures.item.Added = undefined }
+    // @ts-ignore
+    if (Object.keys(generatedResult.textures.item.Renamed).length === 0) { generatedResult.textures.item.Renamed = undefined }
+    // @ts-ignore
+    if (generatedResult.textures.item.Deleted.length === 0) { generatedResult.textures.item.Deleted = undefined }
+
     const resultPath = Path.join(__dirname, 'result', versionB + '.js')
     let resultText = `(${JSON.stringify(generatedResult, null, ' ')})`
     fs.writeFileSync(resultPath, resultText)
