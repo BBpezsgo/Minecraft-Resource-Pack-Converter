@@ -197,15 +197,17 @@ class ResourcePack {
         this.Path = path
 
         this.Mcmeta = mcmeta
+        /** @type {string | null} */
         this.Icon = null
         this.Assets = { }
     }
 
     /**
      * @param {string} relativePath
+     * @param {string} defaultNamespace
      */
-    FindTexture(relativePath) {
-        let namespace = 'minecraft'
+    FindTexture(relativePath, defaultNamespace) {
+        let namespace = defaultNamespace
         if (relativePath.includes(':')) {
             namespace = relativePath.split(':')[0]
             relativePath = relativePath.substring(namespace.length + 1)
@@ -298,6 +300,52 @@ class Namespace {
             }
             result[element.replace('.png', '')] = elementPath
         }
+
+        return result
+    }
+
+    /**
+     * @param {string} relativePath
+     */
+    GetTexturesRecursive(relativePath) {
+        const path = Path.join(this.Path, 'textures', relativePath)
+        if (!fs.existsSync(path)) {
+            return null
+        }
+
+        if (!fs.statSync(path).isDirectory()) {
+            return null
+        }
+
+        const result = {
+
+        }
+
+        const Do = function(/** @type {string[]} */ ...pathElements) {
+            const content = fs.readdirSync(Path.join(path, ...pathElements))
+
+            for (const element of content) {
+                const elementPath = Path.join(path, ...pathElements, element)
+                if (fs.statSync(elementPath).isDirectory()) {
+                    Do(...pathElements, element)
+                    continue
+                }
+                if (!fs.statSync(elementPath).isFile()) {
+                    continue
+                }
+                if (Path.extname(elementPath) !== '.png') {
+                    continue
+                }
+                let id = ''
+                if (pathElements.length > 0) {
+                    id += (pathElements.join('/') + '/')
+                }
+                id += element.replace('.png', '')
+                result[id] = elementPath
+            }
+        }
+
+        Do()
 
         return result
     }
@@ -402,6 +450,61 @@ const Versions = [
     '1.20',
 ]
 
+/**
+ * @param {import('./changes').Version} version
+ */
+function GetDefaultPack(version) {
+    const format = VersionToPackFormat[version]
+    if (!format) throw new Error(`Failed to get pack format from version ${version}`)
+
+    const Changes = require('./changes')
+
+    let base = Changes.Base()
+    const changes = Changes.CollectPackChanges('1.6', version)
+
+    for (let i = base.models.block.length; i >= 0; i--) {
+        const evaulated = Changes.Evaluate(changes.models.block, base.models.block[i])
+        if (evaulated === undefined) continue
+        if (evaulated === null) {
+            base.models.block.splice(i, 1)
+            continue
+        }
+        base.models.block[i] = evaulated
+    }
+    
+    for (let i = base.models.item.length; i >= 0; i--) {
+        const evaulated = Changes.Evaluate(changes.models.item, base.models.item[i])
+        if (evaulated === undefined) continue
+        if (evaulated === null) {
+            base.models.item.splice(i, 1)
+            continue
+        }
+        base.models.item[i] = evaulated
+    }
+    
+    for (let i = base.textures.block.length; i >= 0; i--) {
+        const evaulated = Changes.Evaluate(changes.textures.block, base.textures.block[i])
+        if (evaulated === undefined) continue
+        if (evaulated === null) {
+            base.textures.block.splice(i, 1)
+            continue
+        }
+        base.textures.block[i] = evaulated
+    }
+    
+    for (let i = base.textures.item.length; i >= 0; i--) {
+        const evaulated = Changes.Evaluate(changes.textures.item, base.textures.item[i])
+        if (evaulated === undefined) continue
+        if (evaulated === null) {
+            base.textures.item.splice(i, 1)
+            continue
+        }
+        base.textures.item[i] = evaulated
+    }
+
+    return base
+}
+
 module.exports = {
     ReadResourcePack,
     ResourcePack,
@@ -409,4 +512,5 @@ module.exports = {
     VersionToPackFormat,
     PackFormatToVersion,
     Versions,
+    GetDefaultPack,
 }

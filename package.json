@@ -1,5 +1,8 @@
 {
     "scripts": {
         "start": "node index.js"
+    },
+    "dependencies": {
+        "jimp": "^0.22.10"
     }
 }

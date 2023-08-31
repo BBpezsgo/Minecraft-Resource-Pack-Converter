@@ -1,3 +1,5 @@
+const Pack = require('./pack')
+
 /** @type {import('./changes').PackChanges} */
 const none = {
     models: {
@@ -237,6 +239,118 @@ function ToNonullPack(changes) {
     }
 }
 
+/**
+ * @param {import('./changes').Changes} changesA
+ * @param {import('./changes').ChangesNullable | undefined} changesB
+ */
+function ChainChanges(changesA, changesB) {
+    if (!changesB) return changesA
+
+    let result = {
+        ...changesA,
+    }
+
+    if (changesB.Added) for (const added of changesB.Added) {
+        if (!result.Added.includes(added)) {
+            result.Added.push(added)
+        }
+    }
+
+    if (changesB.Renamed) for (const renamedFrom in changesB.Renamed) {
+        const renamedTo = changesB.Renamed[renamedFrom]
+        result.Renamed[renamedFrom] = renamedTo
+    }
+
+    if (changesB.Deleted) for (const deleted of changesB.Deleted) {
+        for (let i = result.Added.length - 1; i >= 0; i--) {
+            if (result.Added[i] === deleted) {
+                result.Added.splice(i, 1)
+            }
+        }
+        if (!result.Deleted.includes(deleted)) {
+            result.Deleted.push(deleted)
+        }
+    }
+
+    return result
+}
+
+/**
+ * @param {import('./changes').Version} from
+ * @param {import('./changes').Version} to
+ */
+function ChainPackChanges(from, to) {
+    const fromIndex = Pack.Versions.indexOf(from)
+    const toIndex = Pack.Versions.indexOf(to)
+
+    if (fromIndex === -1 || toIndex === -1) {
+        throw new Error('Failed to get version index')
+    }
+
+    if (fromIndex == toIndex) {
+        throw new Error('Current version is same as target version')
+    }
+
+    /** @type {import('./changes').PackChanges} */
+    const changes = none
+
+    for (let i = fromIndex; i < toIndex; i++) {
+        const version = Pack.Versions[i]
+        if (!version) { continue }
+        const currentChanges = versionHistory[version]
+
+        changes.models.block = ChainChanges(changes.models.block, currentChanges.models?.block)
+        changes.models.item = ChainChanges(changes.models.item, currentChanges.models?.item)
+        changes.textures.block = ChainChanges(changes.textures.block, currentChanges.textures?.block)
+        changes.textures.item = ChainChanges(changes.textures.item, currentChanges.textures?.item)
+    }
+
+    return changes
+}
+
+/**
+ * @param {import('./changes').Version} from
+ * @param {import('./changes').Version} to
+ */
+function CollectPackChanges(from, to) {
+    const fromFormat = Pack.VersionToPackFormat[from]
+    const toFormat = Pack.VersionToPackFormat[to]
+    if (!fromFormat) throw new Error(`Failed to get pack format from version ${from}`)
+    if (!toFormat) throw new Error(`Failed to get pack format from version ${to}`)
+    if (fromFormat == toFormat) throw new Error(`Pack formats are the same`)
+
+    let changes
+    if (fromFormat < toFormat) {
+        changes = ChainPackChanges(from, to)
+    } else {
+        changes = ChainPackChanges(to, from)
+        changes = InversePack(changes)
+    }
+    return changes
+}
+
+/**
+ * @param {import('./changes').Changes} changes
+ * @param {string} value
+ * @returns {string | null | undefined}
+ * Return values:
+ * - `string`: Added or renamed
+ * - `null`: Deleted
+ * - `undefined`: Unknown or not registered item
+ */
+function Evaluate(changes, value) {
+    if (changes.Added[value]) {
+        return value
+    }
+    if (changes.Renamed[value]) {
+        return changes.Renamed[value]
+    }
+    if (changes.Deleted.includes(value)) {
+        return null
+    }
+    return undefined
+}
+
 module.exports = {
     VersionHistory: versionHistory,
     EmptyChanges: none,
@@ -246,5 +360,9 @@ module.exports = {
     InversePack,
     ToNonull,
     ToNonullPack,
+    ChainChanges,
+    ChainPackChanges,
     Base,
+    CollectPackChanges,
+    Evaluate,
 }

@@ -20,10 +20,12 @@ export type PackStructureNullable<T> = {
     models?: {
         item?: T
         block?: T
+        entity?: undefined
     }
     textures?: {
         item?: T
         block?: T
+        entity?: T
     }
 }
 
@@ -31,10 +33,12 @@ export type PackStructure<T> = {
     models: {
         item: T
         block: T
+        entity: undefined
     }
     textures: {
         item: T
         block: T
+        entity: T
     }
 }
 
@@ -93,11 +97,25 @@ function ToNonullPack(changes: PackChangesNullable): PackChanges
 
 function Base(): PackStructure<string[]>
 
+function ChainChanges(changesA: Changes, changesB: ChangesNullable | undefined): Changes
+
+function ChainPackChanges(from: Version, to: Version): PackChanges
+
+function CollectPackChanges(from: Version, to: Version): PackChanges
+
+/**
+ * Return values:
+ * - `string`: Added or renamed
+ * - `null`: Deleted
+ * - `undefined`: Unknown or not registered item
+ */
+function Evaluate(changes: Changes, value: string): string | null | undefined
+
 const VersionHistory: TheVersionHistory
 
 const EmptyChanges: PackChanges
 
-export = {
+export {
     VersionHistory,
     EmptyChanges,
     GetKey,
@@ -106,5 +124,9 @@ export = {
     InversePack,
     ToNonull,
     ToNonullPack,
+    ChainChanges,
+    ChainPackChanges,
     Base,
+    CollectPackChanges,
+    Evaluate,
 }

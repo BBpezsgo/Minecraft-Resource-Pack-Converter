@@ -4,16 +4,17 @@ const fs = require('fs')
 const Path = require('path')
 const Pack = require('./pack')
 const PackConverter = require('./pack-converter')
+const LogAnalyser = require('./log-analyser')
 const Changes = require('./changes')
 const VersionHistory = Changes.VersionHistory
 const Utils = require('./utils')
 const {
     DefaultResourcePacksPath,
-    MinecraftRoot,
     Packs,
 } = require('./constants')
+const MinecraftRoot = require('./paths')()
 
-const VanillaResourcePacksPath = MinecraftRoot + 'resourcepacks\\'
+const VanillaResourcePacksPath = Path.join(MinecraftRoot, 'resourcepacks')
 
 const VanillaResourcePacks = fs.readdirSync(VanillaResourcePacksPath)
 
@@ -73,11 +74,13 @@ function CheckFull(versionA, versionB) {
     const texturesA = {
         item: packA.GetTextures(formatA < 4 ? 'items' : 'item') ?? { },
         block: packA.GetTextures(formatA < 4 ? 'blocks' : 'block') ?? { },
+        entity: packA.GetTexturesRecursive('entity') ?? { },
     }
     
     const texturesB = {
         item: packB.GetTextures(formatB < 4 ? 'items' : 'item') ?? { },
         block: packB.GetTextures(formatB < 4 ? 'blocks' : 'block') ?? { },
+        entity: packB.GetTexturesRecursive('entity') ?? { },
     }
 
     const modelsA = {
@@ -97,7 +100,7 @@ function CheckFull(versionA, versionB) {
         /** @type {import('./changes').Map<string, string>} */ collectionB,
         /** @type {import('./changes').PackChangesNullable} */ changes,
         /** @type {'texture' | 'model'} */ kind1,
-        /** @type {'item' | 'block'} */ kind2) {
+        /** @type {'item' | 'block' | 'entity'} */ kind2) {
 
         /** @type {'textures' | 'models'} */
         let _kind1
@@ -133,13 +136,13 @@ function CheckFull(versionA, versionB) {
                     continue
                 }
                 console.log(`${label} \"${name}\" is deleted`)
-                generatedResult[_kind1][kind2].Deleted.push(name)
+                generatedResult[_kind1][kind2]?.Deleted.push(name)
             } else {
                 if (deleted.includes(name)) {
-                    console.log(`${label} \"${name}\" is not deleted`)
+                    // console.log(`${label} \"${name}\" is not deleted`)
                 }
                 if (renamed[name]) {
-                    console.log(`${label} \"${name}\" is not renamed to \"${renamed[name]}\"`)
+                    // console.log(`${label} \"${name}\" is not renamed to \"${renamed[name]}\"`)
                 }
             }
         }
@@ -158,13 +161,13 @@ function CheckFull(versionA, versionB) {
                     continue
                 }
                 console.log(`${label} \"${name}\" is added`)
-                generatedResult[_kind1][kind2].Added.push(name)
+                generatedResult[_kind1][kind2]?.Added.push(name)
             } else {
                 if (added.includes(name)) {
                     console.log(`${label} \"${name}\" is not added`)
                 }
                 if (key) {
-                    console.log(`${label} \"${key}\" is not renamed to \"${name}\"`)
+                    // console.log(`${label} \"${key}\" is not renamed to \"${name}\"`)
                 }
             }
         }
@@ -172,6 +175,7 @@ function CheckFull(versionA, versionB) {
 
     Check(texturesA.item, texturesB.item, changes, 'texture', 'item')
     Check(texturesA.block, texturesB.block, changes, 'texture', 'block')
+    Check(texturesA.entity, texturesB.entity, changes, 'texture', 'entity')
     Check(modelsA.item, modelsB.item, changes, 'model', 'item')
     Check(modelsA.block, modelsB.block, changes, 'model', 'block')
 
@@ -279,7 +283,12 @@ const bruh = () => {
     fs.writeFileSync(Path.join(__dirname, 'result', 'flattening-ids.js'), `(${JSON.stringify(res, null, ' ')})`, 'utf8')
 }
 
-        CheckFull('1.12', '1.13')
+if (true) {
+    CheckFull('1.12', '1.13')
 
-        const convertable = '1.20'
-        // PackConverter.Convert('1.20', '1.12', Packs[convertable], Path.join(VanillaResourcePacksPath, convertable))
+    // LogAnalyser.Clear()
+    // const convertable = 'Cool Textures'
+    // PackConverter.Convert('1.20', '1.12', Packs[convertable], Path.join(VanillaResourcePacksPath, convertable))    
+} else {
+    LogAnalyser.Print()
+}

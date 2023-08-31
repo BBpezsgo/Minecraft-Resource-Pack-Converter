@@ -5,7 +5,9 @@ export type TextureID = `#${string}`
 export type Texture = TextureID | string
 
 export type ModelData = {
-    parent?: string,
+    credit?: string
+    texture_size?: [ number, number, ]
+    parent?: string
     ambientocclusion?: boolean
     textures?: {
         [id: string]: Texture | undefined

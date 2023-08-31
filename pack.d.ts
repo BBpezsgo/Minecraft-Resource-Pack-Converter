@@ -1,4 +1,4 @@
-import { Map, Version } from './changes'
+import { Map, PackStructure, Version } from './changes'
 
 export function ReadResourcePack(path: string): ResourcePack
 
@@ -46,7 +46,7 @@ export class ResourcePack {
         [namespace: string]: Namespace
     }
     
-    FindTexture(relativePath: string): Texture | null
+    FindTexture(relativePath: string, defaultNamespace: string): Texture | null
 }
 
 export class Namespace {
@@ -130,6 +130,7 @@ export class Namespace {
     FindTexture(relativePath: string): Texture | null
 
     GetTextures(relativePath: string): Map<string, string> | null
+    GetTexturesRecursive(relativePath: string): Map<string, string> | null
     
     FindModel(relativePath: string): string | null
 
@@ -288,3 +289,5 @@ export const VersionToPackFormat: VersionToPackFormatConverter
 export const PackFormatToVersion: PackFormatToVersionConverter
 
 export const Versions: Version[]
+
+export function GetDefaultPack(version: Version): PackStructure<string[]>

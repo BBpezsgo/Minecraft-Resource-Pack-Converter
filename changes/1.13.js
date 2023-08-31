@@ -532,6 +532,9 @@
     models: {
         item: {
             Added: [
+                "smooth_quartz",
+                "smooth_stone",
+                
                 "enchanted_golden_apple",
 
                 "black_bed",
@@ -745,6 +748,11 @@
                 "blue_ice",
             ],
             Renamed: {
+                "smooth_red_sandstone": "cut_red_sandstone",
+                "smooth_sandstone": "cut_sandstone",
+
+                "shulker_box": "template_shulker_box",
+
                 "silver_carpet": "light_gray_carpet",
                 "silver_concrete": "light_gray_concrete",
                 "silver_concrete_powder": "light_gray_concrete_powder",
@@ -770,6 +778,8 @@
                 "skull_zombie": "zombie_head",
 
                 "grass": "grass_block",
+                "tall_grass": "grass",
+
                 "noteblock": "note_block",
                 "golden_rail": "powered_rail",
                 "web": "cobweb",
@@ -902,6 +912,18 @@
                 "sign",
                 "skull",
                 "end_portal",
+
+                "mushroom_block_inside",
+                "mushroom_stem_inventory",
+                
+                "template_orientable_trapdoor_bottom",
+                "template_orientable_trapdoor_open",
+                "template_orientable_trapdoor_top",
+
+                "brown_mushroom_block_inventory",
+                "red_mushroom_block_inventory",
+
+                "smooth_stone",
 
                 "petrified_oak_slab",
                 "petrified_oak_slab_top",
@@ -1082,6 +1104,196 @@
                 "sea_pickle",
             ],
             Renamed: {
+                "grass_normal": "grass_block",
+
+                "pane_noside": "template_glass_pane_noside",
+                "pane_noside_alt": "template_glass_pane_noside_alt",
+                "pane_post": "template_glass_pane_post",
+                "pane_side": "template_glass_pane_side",
+                "pane_side_alt": "template_glass_pane_side_alt",
+
+                "sandstone_chiseled": "chiseled_sandstone",
+                "stonebrick_chiseled": "chiseled_stone_bricks",
+                "red_sandstone_chiseled": "chiseled_red_sandstone",
+
+                "red_sandstone_all": "smooth_red_sandstone",
+                "sandstone_all": "smooth_sandstone",
+                "quartz_top": "smooth_quartz",
+
+                "mob_spawner_cage": "spawner",
+                
+                "hardened_clay_black": "black_terracotta",
+                "hardened_clay_blue": "blue_terracotta",
+                "hardened_clay_brown": "brown_terracotta",
+                "hardened_clay_cyan": "cyan_terracotta",
+                "hardened_clay_gray": "gray_terracotta",
+                "hardened_clay_green": "green_terracotta",
+                "hardened_clay_light_blue": "light_blue_terracotta",
+                "hardened_clay_lime": "lime_terracotta",
+                "hardened_clay_magenta": "magenta_terracotta",
+                "hardened_clay_orange": "orange_terracotta",
+                "hardened_clay_pink": "pink_terracotta",
+                "hardened_clay_purple": "purple_terracotta",
+                "hardened_clay_red": "red_terracotta",
+                "hardened_clay_silver": "light_gray_terracotta",
+                "hardened_clay_white": "white_terracotta",
+                "hardened_clay_yellow": "yellow_terracotta",
+
+                "double_stone": "stone_slab_double",
+                "double_stone_top": "stone_slab_top",
+
+                "farmland_dry": "farmland",
+
+                "orchid": "blue_orchid",
+                "houstonia": "azure_bluet",
+
+                "cobblestone_wall_mossy_inventory": "mossy_cobblestone_wall_inventory",
+
+                "redstone_dot": "redstone_dust_dot",
+                "redstone_side": "redstone_dust_side",
+                "redstone_side0": "redstone_dust_side0",
+                "redstone_side1": "redstone_dust_side1",
+                "redstone_side_alt": "redstone_dust_side_alt",
+                "redstone_side_alt0": "redstone_dust_side_alt0",
+                "redstone_side_alt1": "redstone_dust_side_alt1",
+                "redstone_up": "redstone_dust_up",
+
+                "piston_inventory_sticky": "sticky_piston_inventory",
+
+                "piston_normal": "piston",
+                "piston_inventory_normal": "piston_inventory",
+                "piston_head_normal": "piston_head",
+                "piston_head_short_normal": "piston_head_short",
+                "piston_extended_normal": "piston_base",
+
+                "observer_powered": "observer_on",
+                "lit_furnace": "furnace_on",
+                "lit_redstone_lamp": "redstone_lamp_on",
+                "lit_redstone_ore": "redstone_ore_on",
+                "unlit_redstone_lamp": "redstone_lamp",
+
+                "wooden_button_inventory": "oak_button_inventory",
+                "wooden_button_pressed": "oak_button_pressed",
+                "wooden_trapdoor_bottom": "oak_trapdoor_bottom",
+                "wooden_trapdoor_open": "oak_trapdoor_open",
+                "wooden_trapdoor_top": "oak_trapdoor_top",
+
+                "repeater_locked_1tick": "repeater_1tick_locked",
+                "repeater_locked_2tick": "repeater_2tick_locked",
+                "repeater_locked_3tick": "repeater_3tick_locked",
+                "repeater_locked_4tick": "repeater_4tick_locked",
+                "repeater_on_1tick": "repeater_1tick_on",
+                "repeater_on_2tick": "repeater_2tick_on",
+                "repeater_on_3tick": "repeater_3tick_on",
+                "repeater_on_4tick": "repeater_4tick_on",
+                "repeater_on_locked_1tick": "repeater_1tick_on_locked",
+                "repeater_on_locked_2tick": "repeater_2tick_on_locked",
+                "repeater_on_locked_3tick": "repeater_3tick_on_locked",
+                "repeater_on_locked_4tick": "repeater_4tick_on_locked",
+                
+                "comparator_unlit": "comparator",
+                "comparator_unlit_subtract": "comparator_subtract",
+                "comparator_lit": "comparator_on",
+                "comparator_lit_subtract": "comparator_on_subtract",
+
+                "detector_rail_flat": "detector_rail",
+                "detector_rail_powered_flat": "detector_rail_on",
+                "detector_rail_powered_raised_ne": "detector_rail_on_raised_ne",
+                "detector_rail_powered_raised_sw": "detector_rail_on_raised_sw",
+
+                "normal_rail_curved": "rail_corner",
+                "normal_rail_flat": "rail",
+                "normal_rail_raised_ne": "rail_raised_ne",
+                "normal_rail_raised_sw": "rail_raised_sw",
+
+                "rail_raised_ne": "template_rail_raised_ne",
+                "rail_raised_sw": "template_rail_raised_sw",
+
+                "golden_rail_flat": "powered_rail",
+                "golden_rail_active_flat": "powered_rail_on",
+                "golden_rail_active_raised_ne": "powered_rail_on_raised_ne",
+                "golden_rail_active_raised_sw": "powered_rail_on_raised_sw",
+                "golden_rail_raised_ne": "powered_rail_raised_ne",
+                "golden_rail_raised_sw": "powered_rail_raised_sw",
+
+                "activator_rail_flat": "activator_rail",
+                "activator_rail_active_flat": "activator_rail_on",
+                "activator_rail_active_raised_ne": "activator_rail_on_raised_ne",
+                "activator_rail_active_raised_sw": "activator_rail_on_raised_sw",
+
+                "melon_stem_fruit": "attached_melon_stem",
+                "pumpkin_stem_fruit": "attached_pumpkin_stem",
+
+                "brick_inner_stairs": "brick_stairs_inner",
+                "brick_outer_stairs": "brick_stairs_outer",
+                
+                "purpur_inner_stairs": "purpur_stairs_inner",
+                "purpur_outer_stairs": "purpur_stairs_outer",
+                
+                "quartz_inner_stairs": "quartz_stairs_inner",
+                "quartz_outer_stairs": "quartz_stairs_outer",
+                
+                "red_sandstone_inner_stairs": "red_sandstone_stairs_inner",
+                "red_sandstone_outer_stairs": "red_sandstone_stairs_outer",
+                
+                "sandstone_inner_stairs": "sandstone_stairs_inner",
+                "sandstone_outer_stairs": "sandstone_stairs_outer",
+                
+                "stone_brick_inner_stairs": "stone_brick_stairs_inner",
+                "stone_brick_outer_stairs": "stone_brick_stairs_outer",
+                
+                "nether_brick_inner_stairs": "nether_brick_stairs_inner",
+                "nether_brick_outer_stairs": "nether_brick_stairs_outer",
+
+                "stone_stairs": "cobblestone_stairs",
+                "stone_inner_stairs": "cobblestone_stairs_inner",
+                "stone_outer_stairs": "cobblestone_stairs_outer",
+
+                "quartz_normal": "quartz_block",
+
+                "purpur_pillar_top": "purpur_pillar",
+
+                "fence_gate_closed": "template_fence_gate",
+                "fence_gate_open": "template_fence_gate_open",
+
+                "portal_ew": "nether_portal_ew",
+                "portal_ns": "nether_portal_ns",
+
+                "silver_concrete": "light_gray_concrete",
+                "silver_concrete_powder": "light_gray_concrete_powder",
+                "silver_stained_glass_pane_noside": "light_gray_stained_glass_pane_noside",
+                "silver_stained_glass_pane_noside_alt": "light_gray_stained_glass_pane_noside_alt",
+                "silver_stained_glass_pane_post": "light_gray_stained_glass_pane_post",
+                "silver_stained_glass_pane_side": "light_gray_stained_glass_pane_side",
+                "silver_stained_glass_pane_side_alt": "light_gray_stained_glass_pane_side_alt",
+                "silver_wool": "light_gray_wool",
+
+                "grass_snowed": "grass_block_snow",
+
+                "acacia_fence_gate_closed": "acacia_fence_gate",
+                "birch_fence_gate_closed": "birch_fence_gate",
+                "dark_oak_fence_gate_closed": "dark_oak_fence_gate",
+                "jungle_fence_gate_closed": "jungle_fence_gate",
+                "oak_fence_gate_closed": "oak_fence_gate",
+                "spruce_fence_gate_closed": "spruce_fence_gate",
+
+                "wall_gate_closed": "template_fence_gate_wall",
+                "wall_gate_open": "template_fence_gate_wall_open",
+
+                "acacia_wall_gate_closed": "acacia_fence_gate_wall",
+                "birch_wall_gate_closed": "birch_fence_gate_wall",
+                "dark_oak_wall_gate_closed": "dark_oak_fence_gate_wall",
+                "jungle_wall_gate_closed": "jungle_fence_gate_wall",
+                "oak_wall_gate_closed": "oak_fence_gate_wall",
+                "spruce_wall_gate_closed": "spruce_fence_gate_wall",
+
+                "acacia_wall_gate_open": "acacia_fence_gate_wall_open",
+                "birch_wall_gate_open": "birch_fence_gate_wall_open",
+                "dark_oak_wall_gate_open": "dark_oak_fence_gate_wall_open",
+                "jungle_wall_gate_open": "jungle_fence_gate_wall_open",
+                "oak_wall_gate_open": "oak_fence_gate_wall_open",
+                "spruce_wall_gate_open": "spruce_fence_gate_wall_open",
+
                 "acacia_door_bottom_rh": "acacia_door_bottom_hinge",
                 "acacia_door_top_rh": "acacia_door_top_hinge",
                 "birch_door_bottom_rh": "birch_door_bottom_hinge",
@@ -1152,6 +1364,7 @@
                 "flower_pot_oak": "potted_oak_sapling",
                 "flower_pot_spruce": "potted_spruce_sapling",
 
+                "flower_pot_rose": "potted_poppy",
                 "flower_pot_allium": "potted_allium",
                 "flower_pot_cactus": "potted_cactus",
                 "flower_pot_daisy": "potted_oxeye_daisy",
@@ -1204,25 +1417,19 @@
                 "piston": "template_piston",
                 "piston_head": "template_piston_head",
                 "piston_head_short": "template_piston_head_short",
-                "rail_raised_ne": "template_rail_raised_ne",
-                "rail_raised_sw": "template_rail_raised_sw",
                 "glazed_terracotta": "template_glazed_terracotta",
                 "farmland": "template_farmland",
-                "fence_gate_closed": "template_fence_gate",
-                "fence_gate_open": "template_fence_gate_open",
 
                 "cauldron_empty": "cauldron",
 
                 "grass": "grass_block",
                 "noteblock": "note_block",
-                "golden_rail": "powered_rail",
                 "web": "cobweb",
                 "deadbush": "dead_bush",
                 "piston_extension": "moving_piston",
                 "brick_block": "bricks",
                 "mob_spawner": "spawner",
                 "portal": "nether_portal",
-                "stone_stairs": "cobblestone_stairs",
                 "wooden_pressure_plate": "oak_pressure_plate",
                 "snow_layer": "snow",
                 "snow": "snow_block",
@@ -1323,15 +1530,6 @@
                 "quartz_chiseled": "chiseled_quartz_block",
                 "quartz_lines": "quartz_pillar",
                 
-                "rail_activator": "activator_rail",
-                "rail_activator_powered": "activator_rail_on",
-                "rail_detector": "detector_rail",
-                "rail_detector_powered": "detector_rail_on",
-                "rail_golden": "powered_rail",
-                "rail_golden_powered": "powered_rail_on",
-                "rail_normal": "rail",
-                "rail_normal_turned": "rail_corner",
-
                 "tripwire_hook_attached_powered": "tripwire_hook_attached_on",
                 "tripwire_hook_powered": "tripwire_hook_on",
 
@@ -1394,6 +1592,34 @@
                 "melon_stem_growth7": "melon_stem_stage7",
             },
             Deleted: [
+                "brown_mushroom_block_c",
+                "brown_mushroom_block_cap_all",
+                "brown_mushroom_block_e",
+                "brown_mushroom_block_inside_all",
+                "brown_mushroom_block_n",
+                "brown_mushroom_block_ne",
+                "brown_mushroom_block_nw",
+                "brown_mushroom_block_s",
+                "brown_mushroom_block_se",
+                "brown_mushroom_block_stem",
+                "brown_mushroom_block_stem_all",
+                "brown_mushroom_block_sw",
+                "brown_mushroom_block_w",
+                
+                "red_mushroom_block_c",
+                "red_mushroom_block_cap_all",
+                "red_mushroom_block_e",
+                "red_mushroom_block_inside_all",
+                "red_mushroom_block_n",
+                "red_mushroom_block_ne",
+                "red_mushroom_block_nw",
+                "red_mushroom_block_s",
+                "red_mushroom_block_se",
+                "red_mushroom_block_stem",
+                "red_mushroom_block_stem_all",
+                "red_mushroom_block_sw",
+                "red_mushroom_block_w",
+
                 "anvil",
             ],
         },

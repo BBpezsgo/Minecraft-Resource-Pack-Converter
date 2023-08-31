@@ -65,23 +65,38 @@ function ParseCSV(csv) {
 }
 
 /**
- * @param {string | null | undefined} assetRaw
- * @returns {{ namespace: string | null, relativePath: string | null }}
+ * @param {string | undefined} assetRaw
+ * @param {string?} defaultNamespace
+ * @returns {{ namespace: string | null; relativePath: string; }}
  */
-function GetAsset(assetRaw) {
-    if (!assetRaw) return {
-        namespace: null,
-        relativePath: null,
-    }
-    let namespace = null
+function GetAsset(assetRaw, defaultNamespace = null) {
+    if (!assetRaw) throw new Error(`Field "assetRaw" is null`)
+
+    let namespace = defaultNamespace
     if (assetRaw.includes(':')) {
         namespace = assetRaw.split(':')[0]
         assetRaw = assetRaw.substring(namespace.length + 1)
     }
+
     return {
         namespace: namespace,
         relativePath: assetRaw,
     }
+}
+
+/**
+ * @param {number} v
+ * @param {number} min
+ * @param {number} max
+ */
+function Clamp(v, min, max) {
+    if (v < min) {
+        return min
+    }
+    if (v > max) {
+        return max
+    }
+    return v
 }
 
 module.exports = {
@@ -90,4 +105,5 @@ module.exports = {
     GetFilenames,
     ParseCSV,
     GetAsset,
+    Clamp,
 }

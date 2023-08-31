@@ -1,153 +1,9 @@
-const Pack = require('./pack')
 const fs = require('fs')
 const Path = require('path')
+const Pack = require('./pack')
 const Changes = require('./changes')
 const { VersionToPackFormat } = require('./pack')
 const Utils = require('./utils')
-
-/**
- * @param {import('./changes').Changes} changesA
- * @param {import('./changes').ChangesNullable | undefined} changesB
- */
-function ChainChanges(changesA, changesB) {
-    if (!changesB) return changesA
-
-    let result = {
-        ...changesA,
-    }
-
-    if (changesB.Added) for (const added of changesB.Added) {
-        if (!result.Added.includes(added)) {
-            result.Added.push(added)
-        }
-    }
-
-    if (changesB.Renamed) for (const renamedFrom in changesB.Renamed) {
-        const renamedTo = changesB.Renamed[renamedFrom]
-        result.Renamed[renamedFrom] = renamedTo
-    }
-
-    if (changesB.Deleted) for (const deleted of changesB.Deleted) {
-        if (!result.Deleted.includes(deleted)) {
-            result.Deleted.push(deleted)
-        }
-    }
-
-    return result
-}
-
-/**
- * @param {import('./changes').Version} from
- * @param {import('./changes').Version} to
- */
-function ChainPackChanges(from, to) {
-    const fromIndex = Pack.Versions.indexOf(from)
-    const toIndex = Pack.Versions.indexOf(to)
-
-    if (fromIndex === -1 || toIndex === -1) {
-        throw new Error('Failed to get version index')
-    }
-
-    if (fromIndex == toIndex) {
-        throw new Error('Current version is same as target version')
-    }
-
-    /** @type {Changes.PackChanges} */
-    const changes = Changes.EmptyChanges
-
-    for (let i = fromIndex; i < toIndex; i++) {
-        const version = Pack.Versions[i]
-        if (!version) { continue }
-        const currentChanges = Changes.VersionHistory[version]
-
-        changes.models.block = ChainChanges(changes.models.block, currentChanges.models?.block)
-        changes.models.item = ChainChanges(changes.models.item, currentChanges.models?.item)
-        changes.textures.block = ChainChanges(changes.textures.block, currentChanges.textures?.block)
-        changes.textures.item = ChainChanges(changes.textures.block, currentChanges.textures?.item)
-    }
-
-    return changes
-}
-
-/**
- * @param {import('./changes').Changes} changes
- * @param {string} value
- * @returns {string | null | undefined}
- * Return values:
- * - `string`: Added or renamed
- * - `null`: Deleted
- * - `undefined`: Unknown or not registered item
- */
-function Evaluate(changes, value) {
-    if (changes.Added[value]) {
-        return value
-    }
-    if (changes.Renamed[value]) {
-        return changes.Renamed[value]
-    }
-    if (changes.Deleted.includes(value)) {
-        return null
-    }
-    return undefined
-}
-
-/**
- * @param {Changes.Version} version
- */
-function GetDefaultPack(version) {
-    const format = VersionToPackFormat[version]
-    if (!format) throw new Error(`Failed to get pack format from version ${version}`)
-
-    let base = Changes.Base()
-    const changes = CollectPackChanges('1.6', version)
-
-    for (let i = 0; i < base.models.block.length; i++) {
-        const evaulated = Evaluate(changes.models.block, base.models.block[i])
-        if (evaulated === undefined) continue
-        base.models.block[i] = evaulated
-    }
-    
-    for (let i = 0; i < base.models.item.length; i++) {
-        const evaulated = Evaluate(changes.models.item, base.models.item[i])
-        if (evaulated === undefined) continue
-        base.models.item[i] = evaulated
-    }
-    
-    for (let i = 0; i < base.textures.block.length; i++) {
-        const evaulated = Evaluate(changes.textures.block, base.textures.block[i])
-        if (evaulated === undefined) continue
-        base.textures.block[i] = evaulated
-    }
-    
-    for (let i = 0; i < base.textures.item.length; i++) {
-        const evaulated = Evaluate(changes.textures.item, base.textures.item[i])
-        if (evaulated === undefined) continue
-        base.textures.item[i] = evaulated
-    }
-
-    return base
-}
-
-/**
- * @param {Changes.Version} from
- * @param {Changes.Version} to
- */
-function CollectPackChanges(from, to) {
-    const fromFormat = VersionToPackFormat[from]
-    const toFormat = VersionToPackFormat[to]
-    if (!fromFormat) throw new Error(`Failed to get pack format from version ${from}`)
-    if (!toFormat) throw new Error(`Failed to get pack format from version ${to}`)
-    if (fromFormat == toFormat) throw new Error(`Pack formats are the same`)
-
-    let changes
-    if (fromFormat < toFormat) {
-        changes = ChainPackChanges(from, to)
-    } else {
-        changes = ChainPackChanges(to, from)
-        changes = Changes.InversePack(changes)
-    }
-    return changes
-}
 
 /**
  * @param {string} inputFolder
@@ -155,7 +11,7 @@ function CollectPackChanges(from, to) {
  * @param {string} inputFile **Without extension!**
  * @param {string} outputFile **Without extension!**
  */
-function CopyTextureWithOthers(inputFolder, outputFolder, inputFile, outputFile) {
+function CopyTexture(inputFolder, outputFolder, inputFile, outputFile) {
     if (!fs.existsSync(inputFolder)) throw new Error('Input folder does not exists')
     if (!fs.existsSync(outputFolder)) { fs.mkdirSync(outputFolder, { recursive: true }) }
 
@@ -209,45 +65,45 @@ function ConvertTextures(inputFolder, outputFolder, changes, base) {
         const name = file.substring(0, file.length - 4)
 
         const currentTexture = name
-        let targetTexture = Evaluate(changes, currentTexture)
+        let targetTexture = Changes.Evaluate(changes, currentTexture)
 
-        if (!targetTexture) {
-            if (base.includes(currentTexture)) {
-                targetTexture = currentTexture
-            }
+        if (targetTexture === null) { continue }
+
+        if (targetTexture === undefined) {
+            targetTexture = currentTexture
         }
 
-        if (targetTexture) {
-            CopyTextureWithOthers(inputFolder, outputFolder, currentTexture, targetTexture)
-        }
+        CopyTexture(inputFolder, outputFolder, currentTexture, targetTexture)
     }
 }
 
 /**
  * @param {string} path
- * @param {import('./pack').PackFormat} format
+ * @param {number} format
  */
 function ConvertTexturePath(path, format) {
     if (format < 4) {
-        path = path.replace('block', 'blocks').replace('item', 'items')
+        return path.replace('block/', 'blocks/').replace('item/', 'items/')
     } else {
-        path = path.replace('blocks', 'block').replace('items', 'item')
+        return path.replace('blocks/', 'block/').replace('items/', 'item/')
     }
-    return path
 }
 
 /**
+ * @param {'item' | 'block'} kind
+ * 
  * @param {string} inputFolder
  * @param {string} outputFolder
- * @param {Changes.Changes} changes
- * @param {string[]} base
+ * 
  * @param {string} inputNamespaceFolder
  * @param {string} outputNamespaceFolder
- * @param {Changes.Changes} textureChanges
- * @param {string[]} textureBase
+ * 
+ * @param {import('./changes').PackChanges} changes
+ * @param {import('./changes').PackStructure<string[]>} base
+ * 
  * @param {import('./pack').PackFormat} outputFormat
  */
-function ConvertModels(inputFolder, outputFolder, changes, base, inputNamespaceFolder, outputNamespaceFolder, textureChanges, textureBase, outputFormat) {
+function ConvertModels(kind, inputFolder, outputFolder, inputNamespaceFolder, outputNamespaceFolder, changes, base, outputFormat) {
     if (!fs.existsSync(inputFolder)) {
         return
     }
@@ -269,117 +125,129 @@ function ConvertModels(inputFolder, outputFolder, changes, base, inputNamespaceF
     for (const file of files) {
         const ext = file.split('.')[file.split('.').length - 1]
         if (ext !== 'json') { continue }
-        const name = file.substring(0, file.length - 5)
+        const filename = file.substring(0, file.length - 5)
 
-        const currentModel = name
-        let targetModel = Evaluate(changes, currentModel)
+        const fileID = `${Path.basename(inputFolder)}/${filename}`
 
-        if (!targetModel) {
-            if (base.includes(currentModel)) {
-                targetModel = currentModel
-            }
+        let outputFilename = Changes.Evaluate(changes.models[kind], filename)
+        if (outputFilename === undefined) {
+            outputFilename = filename
         }
-
-        if (!targetModel) continue
-
-        let success = true
+        if (!outputFilename) { continue }
 
         /** @type {import('./model').ModelData} */ 
         let model
-        try {
-            model = JSON.parse(fs.readFileSync(Path.join(inputFolder, file), 'utf8'))
-        } catch (error) {
+        try { model = JSON.parse(fs.readFileSync(Path.join(inputFolder, file), 'utf8')) }
+        catch (error) {
             console.error(error)
             continue
         }
 
-        const parent = Utils.GetAsset(model.parent)
+        if (model.parent) {
+            const parent = Utils.GetAsset(model.parent, 'minecraft')
+    
+            if (parent.namespace !== 'minecraft') {
+                console.warn(`[PackConverter]: Model "${fileID}" has unknown namespace "${parent.namespace}", skipping ...`)
+                continue
+            }
+    
+            const parentName = Path.basename(parent.relativePath)
+            const parentKind = Path.dirname(parent.relativePath).split('/')[0]
 
-        parent.namespace = parent.namespace ?? 'minecraft'
-
-        if (parent.namespace !== 'minecraft') {
-            console.warn(`[PackConverter]: Unknown namespace "${parent.namespace}"`)
-            success = false
-            break
+            if (parentKind !== 'item' && parentKind !== 'block') {
+                console.warn(`[PackConverter]: Unknown model directory name "${parentKind}" in model ${fileID}`)
+            } else {
+                /*
+                const parentPath = Path.join(outputNamespaceFolder, parent.relativePath)
+                if (parent.relativePath !== 'item/generated' && !fs.existsSync(parentPath + '.json')) {
+                    console.warn(`[PackConverter]: Parent "${parent.relativePath}" for model "${fileID}" not found, skipping ...`)
+                    continue
+                }
+                */
+    
+                let convertedParent = Changes.Evaluate(changes.models[parentKind], parentName)
+        
+                if (convertedParent === undefined && base.models[kind].includes(parentName)) {
+                    convertedParent = parentName
+                }
+    
+                if (convertedParent === null) {
+                    console.warn(`[PackConverter]: Model "${parent.relativePath}" has been deleted but the model "${fileID}" needs it`)
+                }
+                
+                if (convertedParent) {
+                    model.parent = Path.join(Path.dirname(parent.relativePath), convertedParent).replace(/\\/g, '/')
+                }
+            }
         }
 
-        if (parent.relativePath) {
-            const parentPath = Path.join(outputNamespaceFolder, parent.relativePath)
+        if (model.textures) for (const texture in model.textures) {
+            const asset = Utils.GetAsset(model.textures[texture], 'minecraft')
 
-            if (parent.relativePath !== 'item/generated' && !fs.existsSync(parentPath + '.json')) {
-                console.warn(`[PackConverter]: Parent "${parent.relativePath}" for model "${Path.basename(inputFolder)}/${name}" not found`)
-                success = false
+            if (asset.relativePath.startsWith('#')) continue
+
+            if (asset.namespace !== 'minecraft') {
+                console.warn(`[PackConverter]: Unknown texture namespace "${asset.namespace}" in model "${fileID}", skipping texture ...`)
                 continue
             }
 
-            let convertedParent = Evaluate(changes, Path.basename(parentPath))
+            const parentKind = Path.dirname(asset.relativePath).split('/')[0]
 
-            if (!convertedParent) {
-                if (base.includes(Path.basename(parentPath))) {
-                    convertedParent = Path.basename(parentPath)
-                }
+            if (parentKind !== 'item' && parentKind !== 'block') {
+                console.warn(`[PackConverter]: Unknown texture directory name "${parentKind}" in model ${fileID}, skipping texture ...`)
+                continue
             }
 
-            if (convertedParent) {
-                model.parent = Path.join(Path.dirname(parent.relativePath), convertedParent).replace(/\\/g, '/')
+            const inputTexturePath = Path.join(inputNamespaceFolder, 'textures', asset.relativePath + '.png')
+
+            /*
+            if (!fs.existsSync(inputTexturePath)) {
+                console.warn(`[PackConverter]: Texture "${asset.relativePath}" for model "${fileID}" not found, skipping texture ...`)
+                continue
             }
-        }
+            */
 
-        model.textures = model.textures ?? { }
+            const relativePathOriginal = asset.relativePath
+            let relativePathConverted = ConvertTexturePath(relativePathOriginal, outputFormat)
 
-        for (const texture in model.textures) {
-            const asset = Utils.GetAsset(model.textures[texture])
-            if (!asset.relativePath) continue
+            let convertedTexture = Changes.Evaluate(changes.textures[parentKind], Path.basename(relativePathOriginal))
 
-            asset.namespace = asset.namespace ?? 'minecraft'
-
-            if (asset.namespace !== 'minecraft') {
-                console.warn(`[PackConverter]: Unknown namespace "${asset.namespace}"`)
-                success = false
-                break
-            }
-
-            const relativePath = asset.relativePath
-            
-            const texturePath = Path.join(outputNamespaceFolder, 'textures', ConvertTexturePath(relativePath, outputFormat))
-
-            if (!fs.existsSync(texturePath + '.png')) {
-                const eeeeeee = Path.join(inputNamespaceFolder, 'textures', relativePath + '.png')
-                if (!fs.existsSync(eeeeeee)) {
-                    console.warn(`[PackConverter]: Texture "${asset.relativePath}" for model "${file}" not found`)
-                    success = false
-                    break
-                } else {
-                    CopyTextureWithOthers(
-                        Path.join(inputNamespaceFolder, 'textures', Path.dirname(relativePath)),
-                        Path.join(outputNamespaceFolder, 'textures', ConvertTexturePath(Path.dirname(relativePath), outputFormat)),
-                        Path.basename(relativePath),
-                        ConvertTexturePath(Path.basename(relativePath), outputFormat)
-                        )
-                    // fs.copyFileSync(eeeeeee, Path.join(outputNamespaceFolder, 'textures', ConvertTexturePath(relativePath, outputFormat) + '.png'))
-                }
+            if (convertedTexture === null) {
+                console.warn(`[PackConverter]: Texture "${relativePathOriginal}" has been deleted but the model "${fileID}" needs it`)
             }
 
-            let convertedTexture = Evaluate(textureChanges, Path.basename(texturePath))
-
-            if (!convertedTexture) {
-                if (textureBase.includes(Path.basename(texturePath))) {
-                    convertedTexture = Path.basename(texturePath)
+            if (convertedTexture === undefined) {
+                if (base.textures[kind].includes(Path.basename(relativePathOriginal))) {
+                    convertedTexture = Path.basename(relativePathOriginal)
                 }
             }
 
             if (convertedTexture) {
-                model.textures[texture] = Path.join(Path.dirname(relativePath), convertedTexture).replace(/\\/g, '/')
-            } else {
-                model.textures[texture] = ConvertTexturePath(asset.relativePath, outputFormat)
+                relativePathConverted = Path.join(Path.dirname(ConvertTexturePath(relativePathOriginal, outputFormat)), convertedTexture).replace(/\\/g, '/')
+                model.textures[texture] = relativePathConverted
+            }
+
+            const outputTexturePath = Path.join(outputNamespaceFolder, 'textures', relativePathConverted) + '.png'
+            // @ts-ignore
+            model.textures[texture] = ConvertTexturePath(model.textures[texture], outputFormat)
+
+            if (!fs.existsSync(outputTexturePath)) {
+                console.log(`[PackConverter]: Converted texture "${relativePathConverted}" for model "${file}" not found, copy non-converted texture`)
+                
+                if (!fs.existsSync(inputTexturePath)) {
+                    console.warn(`[PackConverter]: Original texture "${asset.relativePath}" for model "${file}" not found`)
+                } else {
+                    CopyTexture(
+                            Path.join(inputNamespaceFolder, 'textures', Path.dirname(relativePathOriginal)),
+                            Path.join(outputNamespaceFolder, 'textures', Path.dirname(relativePathConverted)),
+                            Path.basename(relativePathOriginal),
+                            Path.basename(relativePathConverted)
+                        )
+                }
             }
         }
 
-        if (!success) {
-            continue
-        }
-
-        fs.writeFileSync(Path.join(outputFolder, targetModel + '.json'), JSON.stringify(model, null, ' '), 'utf8')
+        fs.writeFileSync(Path.join(outputFolder, outputFilename + '.json'), JSON.stringify(model, null, ' '), 'utf8')
     }
 }
 
@@ -393,17 +261,10 @@ function Convert(inputVersion, outputVersion, input, output) {
     const inputFormat = VersionToPackFormat[inputVersion]
     const outputFormat = VersionToPackFormat[outputVersion]
 
-    if (!inputFormat) {
-        throw new Error(`Failed to get pack format from version ${inputVersion}`)
-    }
+    if (!inputFormat) throw new Error(`Failed to get pack format from version ${inputVersion}`)
+    if (!outputFormat) throw new Error(`Failed to get pack format from version ${outputVersion}`)
 
-    if (!outputFormat) {
-        throw new Error(`Failed to get pack format from version ${outputVersion}`)
-    }
-
-    if (inputFormat == outputFormat) {
-        throw new Error(`Pack formats are the same`)
-    }
+    if (inputFormat == outputFormat) throw new Error(`Pack formats are the same`)
 
     if (!fs.existsSync(output)) { fs.mkdirSync(output, { recursive: true }) }
 
@@ -414,11 +275,16 @@ function Convert(inputVersion, outputVersion, input, output) {
         }
     }, null, ' '), 'utf8')
 
-    let changes = CollectPackChanges(inputVersion, outputVersion)
-    const base = GetDefaultPack(outputVersion)
-
     const inputMinecraft = Path.join(input, 'assets', 'minecraft')
     const outputMinecraft = Path.join(output, 'assets', 'minecraft')
+
+    if (!fs.existsSync(inputMinecraft)) {
+        console.log(`[PackConverter]: Namespace "minecraft" not found`)
+        return
+    }
+
+    const changes = Changes.CollectPackChanges(inputVersion, outputVersion)
+    const base = Pack.GetDefaultPack(outputVersion)
 
     if (!fs.existsSync(outputMinecraft)) { fs.mkdirSync(outputMinecraft, { recursive: true }) }
 
@@ -442,39 +308,11 @@ function Convert(inputVersion, outputVersion, input, output) {
 
     if (!fs.existsSync(outputModels)) { fs.mkdirSync(outputModels, { recursive: true }) }
 
-    const inputModelsItem = Path.join(inputModels, 'item')
-    const outputModelsItem = Path.join(outputModels, 'item')
+    const modelsKindBlock = 'block'
+    ConvertModels(modelsKindBlock, Path.join(inputModels, modelsKindBlock), Path.join(outputModels, modelsKindBlock), inputMinecraft, outputMinecraft, changes, base, outputFormat)
 
-    ConvertModels(inputModelsItem, outputModelsItem, changes.models.item, base.models.item, inputMinecraft, outputMinecraft, changes.textures.item, base.textures.item, outputFormat)
-
-    return
-    
-    const inputModelsBlock = Path.join(inputModels, 'block')
-    const outputModelsBlock = Path.join(outputModels, 'block')
-
-    if (fs.existsSync(inputModelsBlock)) {
-        if (!fs.existsSync(outputModelsBlock)) { fs.mkdirSync(outputModelsBlock, { recursive: true }) }
-        const files = fs.readdirSync(inputModelsBlock)
-
-        for (const file of files) {
-            const ext = file.split('.')[file.split('.').length - 1]
-            if (ext !== 'json') { continue }
-            const name = file.substring(0, file.length - 5)
-
-            const currentModel = name
-            let targetModel = Evaluate(changes.models.block, currentModel)
-
-            if (!targetModel) {
-                if (base.models.block.includes(currentModel)) {
-                    targetModel = currentModel
-                }
-            }
-
-            if (targetModel) {
-                fs.copyFileSync(Path.join(inputModelsBlock, currentModel + '.json'), Path.join(outputModelsBlock, targetModel + '.json'))
-            }
-        }
-    }
+    const modelsKindItem = 'item'
+    ConvertModels(modelsKindItem,  Path.join(inputModels, modelsKindItem),  Path.join(outputModels, modelsKindItem),  inputMinecraft, outputMinecraft, changes, base, outputFormat)
 }
 
 module.exports = {
