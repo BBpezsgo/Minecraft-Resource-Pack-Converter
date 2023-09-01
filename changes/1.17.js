@@ -689,6 +689,24 @@
                 "grass_path_side": "dirt_path_side",
                 "grass_path_top": "dirt_path_top",
             }
-        }
+        },
+        entity: {
+            Added: [
+                "axolotl/axolotl_blue",
+                "axolotl/axolotl_cyan",
+                "axolotl/axolotl_gold",
+                "axolotl/axolotl_lucy",
+                "axolotl/axolotl_wild",
+                "goat/goat",
+                "squid/glow_squid",
+            ],
+            Renamed: {
+                "squid": "squid/squid",
+            },
+            Deleted: [
+                "arrow",
+                "zombie/zombie_villager",
+            ],
+        },
     }
 })

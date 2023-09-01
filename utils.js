@@ -99,6 +99,21 @@ function Clamp(v, min, max) {
     return v
 }
 
+/**
+ * @param {number} v
+ * @param {number} min
+ * @param {number} max
+ */
+function Repeat(v, min, max) {
+    while (v < min) {
+        v = v + min
+    }
+    while (v > max) {
+        v = v - max
+    }
+    return v
+}
+
 module.exports = {
     CapitalizeFirst,
     LevenshteinDistance,
@@ -106,4 +121,5 @@ module.exports = {
     ParseCSV,
     GetAsset,
     Clamp,
+    Repeat,
 }

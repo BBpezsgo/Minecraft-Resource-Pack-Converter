@@ -27,6 +27,11 @@ export type PackStructureNullable<T> = {
         block?: T
         entity?: T
     }
+    uv?: {
+        item?: Map<string, string>
+        block?: Map<string, string>
+        entity?: Map<string, string>
+    }
 }
 
 export type PackStructure<T> = {
@@ -39,6 +44,11 @@ export type PackStructure<T> = {
         item: T
         block: T
         entity: T
+    }
+    uv: {
+        item: Map<string, string>
+        block: Map<string, string>
+        entity: Map<string, string>
     }
 }
 
@@ -113,11 +123,11 @@ function Evaluate(changes: Changes, value: string): string | null | undefined
 
 const VersionHistory: TheVersionHistory
 
-const EmptyChanges: PackChanges
+function NoChanges(): PackChanges
 
 export {
     VersionHistory,
-    EmptyChanges,
+    NoChanges,
     GetKey,
     GetPair,
     Inverse,

@@ -47,5 +47,37 @@
                 "honey_block_top",
             ],
         },
+        entity: {
+            Added: [
+                "bee/bee",
+                "bee/bee_angry",
+                "bee/bee_angry_nectar",
+                "bee/bee_nectar",
+                "bee/bee_stinger",
+                "chest/christmas_left",
+                "chest/christmas_right",
+                "chest/normal_left",
+                "chest/normal_right",
+                "chest/trapped_left",
+                "chest/trapped_right",
+                "iron_golem/iron_golem",
+                "iron_golem/iron_golem_crackiness_high",
+                "iron_golem/iron_golem_crackiness_low",
+                "iron_golem/iron_golem_crackiness_medium",
+            ],
+            Deleted: [
+                "chest/christmas_double",
+                "chest/normal_double",
+                "chest/trapped_double",
+                "iron_golem",
+            ],
+        },
+    },
+    uv: {
+        entity: {
+            "chest/normal": "chest",
+            "chest/ender": "chest",
+            "chest/trapped": "chest",
+        },
     },
 })

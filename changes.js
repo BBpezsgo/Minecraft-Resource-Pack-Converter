@@ -1,80 +1,93 @@
 const Pack = require('./pack')
 
-/** @type {import('./changes').PackChanges} */
-const none = {
-    models: {
-        item: {
-            Added: [],
-            Renamed: {},
-            Deleted: [],
+/** @returns {import('./changes').PackChanges} */
+function NoChanges() {
+    return {
+        models: {
+            item: {
+                Added: [],
+                Renamed: {},
+                Deleted: [],
+            },
+            block: {
+                Added: [],
+                Renamed: {},
+                Deleted: [],
+            },
+            entity: undefined,
         },
-        block: {
-            Added: [],
-            Renamed: {},
-            Deleted: [],
+        textures: {
+            item: {
+                Added: [],
+                Renamed: {},
+                Deleted: [],
+            },
+            block: {
+                Added: [],
+                Renamed: {},
+                Deleted: [],
+            },
+            entity: {
+                Added: [],
+                Renamed: {},
+                Deleted: [],
+            },
         },
-    },
-    textures: {
-        item: {
-            Added: [],
-            Renamed: {},
-            Deleted: [],
+        uv: {
+            block: { },
+            item: { },
+            entity: { },
         },
-        block: {
-            Added: [],
-            Renamed: {},
-            Deleted: [],
-        },
-    },
+    }
 }
 
 const fs = require('fs')
 const Path = require('path')
 
 let  v1_6 = {
-    ...none,
+    ...NoChanges(),
 }
 let  v1_7 = {
-    ...none,
+    ...NoChanges(),
 }
 let  v1_8 = {
-    ...none,
+    ...NoChanges(),
 }
 let  v1_9 = {
-    ...none,
+    ...NoChanges(),
 }
 let  v1_10 = {
-    ...none,
+    ...NoChanges(),
 }
 let  v1_11 = {
-    ...none,
+    ...NoChanges(),
 }
 let  v1_12 = {
-    ...none,
+    ...NoChanges(),
 }
 let  v1_13 = {
-    ...none,
+    ...NoChanges(),
 }
 let  v1_14 = {
-    ...none,
+    ...NoChanges(),
 }
 let  v1_15 = {
-    ...none,
+    ...NoChanges(),
 }
 let  v1_16 = {
-    ...none,
+    ...NoChanges(),
 }
 let  v1_17 = {
-    ...none,
+    ...NoChanges(),
 }
 let  v1_18 = {
-    ...none,
+    ...NoChanges(),
 }
 let  v1_19 = {
-    ...none,
+    ...NoChanges(),
 }
 let  v1_20 = {
-    ...none,
+    ...NoChanges(),
 }
 
 /** @type {import('./changes').TheVersionHistory} */
@@ -106,7 +119,7 @@ for (const version in versionHistory) {
     const res = eval(js)
     if (res) {
         versionHistory[version] = {
-            ...none,
+            ...NoChanges(),
             ...res,
         }
     }
@@ -194,6 +207,27 @@ function Inverse(changes) {
 }
 
 /**
+ * @param {import('./changes').Map<string, string>} uvs
+ * @returns {import('./changes').Map<string, string>}
+ */
+function InverseUVs(uvs) {
+    const result = { }
+
+    for (const key in uvs) {
+        /** @type {string} */
+        let value = uvs[key]
+        if (value.endsWith('-inverted')) {
+            value = value.substring(0, value.length - '-inverted'.length)
+        } else {
+            value = value + '-inverted'
+        }
+        result[key] = value
+    }
+
+    return result
+}
+
+/**
  * @param {import('./changes').PackChanges} changes
  * @returns {import('./changes').PackChanges}
  */
@@ -202,10 +236,17 @@ function InversePack(changes) {
         models: {
             block: Inverse(changes.models.block),
             item: Inverse(changes.models.item),
+            entity: undefined,
         },
         textures: {
             block: Inverse(changes.textures.block),
             item: Inverse(changes.textures.item),
+            entity: Inverse(changes.textures.entity),
+        },
+        uv: {
+            block: InverseUVs(changes.uv.block),
+            item: InverseUVs(changes.uv.item),
+            entity: InverseUVs(changes.uv.entity),
         },
     }
 }
@@ -231,10 +272,17 @@ function ToNonullPack(changes) {
         models: {
             block: ToNonull(changes?.models?.block),
             item: ToNonull(changes?.models?.item),
+            entity: undefined,
         },
         textures: {
             block: ToNonull(changes?.textures?.block),
             item: ToNonull(changes?.textures?.item),
+            entity: ToNonull(changes?.textures?.entity),
+        },
+        uv: {
+            block: ToNonull(changes?.uv?.block),
+            item: ToNonull(changes?.uv?.item),
+            entity: ToNonull(changes?.uv?.entity),
         },
     }
 }
@@ -276,6 +324,29 @@ function ChainChanges(changesA, changesB) {
 }
 
 /**
+ * @param {import('./changes').Map<string, string>} uvsA
+ * @param {import('./changes').Map<string, string> | undefined} uvsB
+ * @returns {import('./changes').Map<string, string>}
+ */
+function ChainUVs(uvsA, uvsB) {
+    if (!uvsB) return uvsA
+
+    let result = {
+        ...uvsA,
+    }
+
+    for (const key in uvsB) {
+        if (result[key]) {
+            console.error(`[Changes]: Can not chain multiple uv-s`)
+        } else {
+            result[key] = uvsB[key]
+        }
+    }
+
+    return result
+}
+
+/**
  * @param {import('./changes').Version} from
  * @param {import('./changes').Version} to
  */
@@ -292,7 +363,7 @@ function ChainPackChanges(from, to) {
     }
 
     /** @type {import('./changes').PackChanges} */
-    const changes = none
+    const changes = NoChanges()
 
     for (let i = fromIndex; i < toIndex; i++) {
         const version = Pack.Versions[i]
@@ -303,6 +374,10 @@ function ChainPackChanges(from, to) {
         changes.models.item = ChainChanges(changes.models.item, currentChanges.models?.item)
         changes.textures.block = ChainChanges(changes.textures.block, currentChanges.textures?.block)
         changes.textures.item = ChainChanges(changes.textures.item, currentChanges.textures?.item)
+        changes.textures.entity = ChainChanges(changes.textures.entity, currentChanges.textures?.entity)
+        changes.uv.block = ChainUVs(changes.uv.block, currentChanges.uv?.block)
+        changes.uv.item = ChainUVs(changes.uv.item, currentChanges.uv?.item )
+        changes.uv.entity = ChainUVs(changes.uv.entity, currentChanges.uv?.entity)
     }
 
     return changes
@@ -353,7 +428,7 @@ function Evaluate(changes, value) {
 
 module.exports = {
     VersionHistory: versionHistory,
-    EmptyChanges: none,
+    NoChanges: NoChanges,
     GetKey,
     GetPair,
     Inverse,

@@ -426,6 +426,24 @@
                 "weeping_vines",
                 "weeping_vines_plant"
             ]
-        }
+        },
+        entity: {
+            Added: [
+                "banner/piglin",
+                "hoglin/hoglin",
+                "hoglin/zoglin",
+                "piglin/piglin",
+                "piglin/piglin_brute",
+                "shield/piglin",
+                "signs/crimson",
+                "signs/warped",
+                "strider/strider",
+                "strider/strider_cold",
+                "strider/strider_saddle",
+            ],
+            Renamed: {
+                "zombie_pigman": "piglin/zombified_piglin",
+            },
+        },
     }
 })

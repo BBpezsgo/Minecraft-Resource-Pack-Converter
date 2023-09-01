@@ -36,5 +36,16 @@
                 "music_disc_otherside",
             ],
         },
+        entity: {
+            Added: [
+
+            ],
+            Renamed: {
+
+            },
+            Deleted: [
+
+            ],
+        },
     },
 })

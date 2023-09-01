@@ -4,6 +4,8 @@ const Pack = require('./pack')
 const Changes = require('./changes')
 const { VersionToPackFormat } = require('./pack')
 const Utils = require('./utils')
+const UV = require('./uv')
+const Jimp = require("jimp")
 
 /**
  * @param {string} inputFolder
@@ -13,7 +15,6 @@ const Utils = require('./utils')
  */
 function CopyTexture(inputFolder, outputFolder, inputFile, outputFile) {
     if (!fs.existsSync(inputFolder)) throw new Error('Input folder does not exists')
-    if (!fs.existsSync(outputFolder)) { fs.mkdirSync(outputFolder, { recursive: true }) }
 
     const png = '.png'
     const mcm = '.mcmeta'
@@ -22,6 +23,8 @@ function CopyTexture(inputFolder, outputFolder, inputFile, outputFile) {
     let copies = { }
 
     if (!fs.existsSync(Path.join(inputFolder, inputFile + png))) throw new Error('Input file does not exists')
+
+    if (!fs.existsSync(Path.dirname(Path.join(outputFolder, outputFile + png)))) { fs.mkdirSync(Path.dirname(Path.join(outputFolder, outputFile + png)), { recursive: true }) }
 
     copies[png] = png
 
@@ -43,12 +46,84 @@ function CopyTexture(inputFolder, outputFolder, inputFile, outputFile) {
 }
 
 /**
+ * @param {string} folderPath
+ * @param {string} fileName
+ * @param {string} uv
+ */
+function ApplyUV(folderPath, fileName, uv) {
+    const png = '.png'
+    const ems = '_e'
+
+    if (!fs.existsSync(Path.join(folderPath, fileName + png))) { return }
+
+    let convertables = []
+
+    convertables.push(Path.join(folderPath, fileName + png))
+
+    if (fs.existsSync(Path.join(folderPath, fileName + ems + png))) {
+        convertables.push(Path.join(folderPath, fileName + ems + png))
+    }
+    
+    const uvPath = Path.join(__dirname, 'uvs', uv + '.png')
+    if (!fs.existsSync(uvPath)) {
+        console.error(`UV texture "${uv}" not found`)
+        return
+    }
+
+    for (const convertable of convertables) {
+        UV.ApplyUVFile(uvPath, convertable, convertable)
+            .catch(console.error)
+    }
+}
+
+/**
+ * @param {string} directory
+ * @param {string?} extension
+ * @returns {string[]}
+ */
+function ReadDirRecursive(directory, extension = null) {
+    const result = []
+    
+    const Do = function(/** @type {string[]} */ ...pathElements) {
+        const content = fs.readdirSync(Path.join(directory, ...pathElements))
+
+        for (const element of content) {
+            const elementPath = Path.join(directory, ...pathElements, element)
+            if (fs.statSync(elementPath).isDirectory()) {
+                Do(...pathElements, element)
+                continue
+            }
+            if (!fs.statSync(elementPath).isFile()) { continue }
+
+            const ext = element.split('.')[element.split('.').length - 1]
+
+            if (extension && ext !== extension) { continue }
+
+            const name = element.substring(0, element.length - 1 - ext.length)
+            
+            let id = ''
+            if (pathElements.length > 0) {
+                id += (pathElements.join('/') + '/')
+            }
+            id += name
+
+            result.push(id)
+        }
+    }
+
+    Do()
+
+    return result
+}
+
+/**
  * @param {string} inputFolder
  * @param {string} outputFolder
  * @param {Changes.Changes} changes
  * @param {string[]} base
+ * @param {Changes.Map<string, string>} uvs
  */
-function ConvertTextures(inputFolder, outputFolder, changes, base) {
+function ConvertTextures(inputFolder, outputFolder, changes, base, uvs) {
     if (!fs.existsSync(inputFolder)) {
         return
     }
@@ -57,14 +132,10 @@ function ConvertTextures(inputFolder, outputFolder, changes, base) {
         fs.mkdirSync(outputFolder, { recursive: true })
     }
 
-    const files = fs.readdirSync(inputFolder)
+    const files = ReadDirRecursive(inputFolder, 'png')
 
-    for (const file of files) {
-        const ext = file.split('.')[file.split('.').length - 1]
-        if (ext !== 'png') { continue }
-        const name = file.substring(0, file.length - 4)
+    for (const currentTexture of files) {
 
-        const currentTexture = name
         let targetTexture = Changes.Evaluate(changes, currentTexture)
 
         if (targetTexture === null) { continue }
@@ -74,6 +145,11 @@ function ConvertTextures(inputFolder, outputFolder, changes, base) {
         }
 
         CopyTexture(inputFolder, outputFolder, currentTexture, targetTexture)
+
+        const uv = uvs[targetTexture]
+        if (uv) {
+            ApplyUV(outputFolder, targetTexture, uv)
+        }
     }
 }
 
@@ -232,11 +308,10 @@ function ConvertModels(kind, inputFolder, outputFolder, inputNamespaceFolder, ou
             model.textures[texture] = ConvertTexturePath(model.textures[texture], outputFormat)
 
             if (!fs.existsSync(outputTexturePath)) {
-                console.log(`[PackConverter]: Converted texture "${relativePathConverted}" for model "${file}" not found, copy non-converted texture`)
-                
                 if (!fs.existsSync(inputTexturePath)) {
                     console.warn(`[PackConverter]: Original texture "${asset.relativePath}" for model "${file}" not found`)
                 } else {
+                    console.log(`[PackConverter]: Converted texture "${relativePathConverted}" for model "${file}" not found, copy non-converted texture`)
                     CopyTexture(
                             Path.join(inputNamespaceFolder, 'textures', Path.dirname(relativePathOriginal)),
                             Path.join(outputNamespaceFolder, 'textures', Path.dirname(relativePathConverted)),
@@ -296,12 +371,17 @@ function Convert(inputVersion, outputVersion, input, output) {
     const inputTexturesItem = Path.join(inputTextures, (inputFormat < 4) ? 'items' : 'item')
     const outputTexturesItem = Path.join(outputTextures, (outputFormat < 4) ? 'items' : 'item')
 
-    ConvertTextures(inputTexturesItem, outputTexturesItem, changes.textures.item, base.textures.item)
+    ConvertTextures(inputTexturesItem, outputTexturesItem, changes.textures.item, base.textures.item, changes.uv.item)
 
     const inputTexturesBlock = Path.join(inputTextures, (inputFormat < 4) ? 'blocks' : 'block')
     const outputTexturesBlock = Path.join(outputTextures, (outputFormat < 4) ? 'blocks' : 'block')
 
-    ConvertTextures(inputTexturesBlock, outputTexturesBlock, changes.textures.block, base.textures.block)
+    ConvertTextures(inputTexturesBlock, outputTexturesBlock, changes.textures.block, base.textures.block, changes.uv.block)
+
+    const inputTexturesEntity = Path.join(inputTextures, 'entity')
+    const outputTexturesEntity = Path.join(outputTextures, 'entity')
+
+    ConvertTextures(inputTexturesEntity, outputTexturesEntity, changes.textures.entity, base.textures.entity, changes.uv.entity)
 
     const inputModels = Path.join(inputMinecraft, 'models')
     const outputModels = Path.join(outputMinecraft, 'models')

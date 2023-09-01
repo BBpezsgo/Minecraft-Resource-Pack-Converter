@@ -8,6 +8,8 @@ const LogAnalyser = require('./log-analyser')
 const Changes = require('./changes')
 const VersionHistory = Changes.VersionHistory
 const Utils = require('./utils')
+const Colors = require('./colors')
+const UV = require('./uv')
 const {
     DefaultResourcePacksPath,
     Packs,
@@ -93,7 +95,7 @@ function CheckFull(versionA, versionB) {
         block: packB.GetModels('block') ?? {},
     }
 
-    const generatedResult = Changes.EmptyChanges
+    const generatedResult = Changes.NoChanges()
 
     const Check = function(
         /** @type {import('./changes').Map<string, string>} */ collectionA,
@@ -207,6 +209,13 @@ function CheckFull(versionA, versionB) {
     // @ts-ignore
     if (generatedResult.textures.item.Deleted.length === 0) { generatedResult.textures.item.Deleted = undefined }
 
+    // @ts-ignore
+    if (generatedResult.textures.entity.Added.length === 0) { generatedResult.textures.entity.Added = undefined }
+    // @ts-ignore
+    if (Object.keys(generatedResult.textures.entity.Renamed).length === 0) { generatedResult.textures.entity.Renamed = undefined }
+    // @ts-ignore
+    if (generatedResult.textures.entity.Deleted.length === 0) { generatedResult.textures.entity.Deleted = undefined }
+
     const resultPath = Path.join(__dirname, 'result', versionB + '.js')
     let resultText = `(${JSON.stringify(generatedResult, null, ' ')})`
     fs.writeFileSync(resultPath, resultText)
@@ -283,12 +292,31 @@ const bruh = () => {
     fs.writeFileSync(Path.join(__dirname, 'result', 'flattening-ids.js'), `(${JSON.stringify(res, null, ' ')})`, 'utf8')
 }
 
-if (true) {
-    CheckFull('1.12', '1.13')
-
-    // LogAnalyser.Clear()
-    // const convertable = 'Cool Textures'
-    // PackConverter.Convert('1.20', '1.12', Packs[convertable], Path.join(VanillaResourcePacksPath, convertable))    
-} else {
-    LogAnalyser.Print()
+function InvertAllUVs() {
+    const folder = Path.join(__dirname, 'uvs')
+    if (!fs.existsSync(folder)) { return }
+    const contents = fs.readdirSync(folder)
+    for (const element of contents) {
+        if (Path.extname(element) !== '.png') { continue }
+        let filename = element.substring(0, element.length - 4)
+        if (filename.endsWith('-inverted')) { continue }
+        filename += '-inverted'
+        UV.InvertUVFile(Path.join(folder, element), Path.join(folder, filename + '.png'))
+    }
 }
+
+function Entry() {
+    if (true) {
+        // CheckFull('1.11', '1.12')
+    
+        // InvertAllUVs()
+
+        LogAnalyser.Clear()
+        const convertable = 'Cool Textures'
+        PackConverter.Convert('1.20', '1.12', Packs[convertable], Path.join(VanillaResourcePacksPath, convertable))    
+    } else {
+        LogAnalyser.Print()
+    }    
+}
+
+Entry()

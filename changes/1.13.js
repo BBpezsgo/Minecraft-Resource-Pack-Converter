@@ -528,6 +528,93 @@
                 "flower_paeonia",
             ],
         },
+        entity: {
+            Added: [
+                "shulker/shulker",
+
+                "conduit/base",
+                "conduit/break_particle",
+                "conduit/cage",
+                "conduit/closed_eye",
+                "conduit/open_eye",
+                "conduit/wind",
+                "conduit/wind_vertical",
+                
+                "dolphin",
+                
+                "fish/cod",
+                "fish/pufferfish",
+                "fish/salmon",
+                "fish/tropical_a",
+                "fish/tropical_a_pattern_1",
+                "fish/tropical_a_pattern_2",
+                "fish/tropical_a_pattern_3",
+                "fish/tropical_a_pattern_4",
+                "fish/tropical_a_pattern_5",
+                "fish/tropical_a_pattern_6",
+                "fish/tropical_b",
+                "fish/tropical_b_pattern_1",
+                "fish/tropical_b_pattern_2",
+                "fish/tropical_b_pattern_3",
+                "fish/tropical_b_pattern_4",
+                "fish/tropical_b_pattern_5",
+                "fish/tropical_b_pattern_6",
+
+                "phantom",
+                "phantom_eyes",
+
+                "trident",
+                "trident_riptide",
+
+                "turtle/big_sea_turtle",
+                
+                "zombie/drowned",
+                "zombie/drowned_outer_layer"
+            ],
+            Renamed: {
+                "bed/silver": "bed/light_gray",
+                "shulker/shulker_silver": "shulker/shulker_light_gray",
+
+                "boat/boat_acacia": "boat/acacia",
+                "boat/boat_birch": "boat/birch",
+                "boat/boat_darkoak": "boat/dark_oak",
+                "boat/boat_jungle": "boat/jungle",
+                "boat/boat_oak": "boat/oak",
+                "boat/boat_spruce": "boat/spruce",
+
+                "endercrystal/endercrystal": "end_crystal/end_crystal",
+                "endercrystal/endercrystal_beam": "end_crystal/end_crystal_beam",
+
+                "illager/fangs": "illager/evoker_fangs",
+                "illager/illusionist": "illager/illusioner",
+
+                "snowman": "snow_golem",
+                
+                "llama/decor/decor_black": "llama/decor/black",
+                "llama/decor/decor_blue": "llama/decor/blue",
+                "llama/decor/decor_brown": "llama/decor/brown",
+                "llama/decor/decor_cyan": "llama/decor/cyan",
+                "llama/decor/decor_gray": "llama/decor/gray",
+                "llama/decor/decor_green": "llama/decor/green",
+                "llama/decor/decor_light_blue": "llama/decor/light_blue",
+                "llama/decor/decor_lime": "llama/decor/lime",
+                "llama/decor/decor_magenta": "llama/decor/magenta",
+                "llama/decor/decor_orange": "llama/decor/orange",
+                "llama/decor/decor_pink": "llama/decor/pink",
+                "llama/decor/decor_purple": "llama/decor/purple",
+                "llama/decor/decor_red": "llama/decor/red",
+                "llama/decor/decor_silver": "llama/decor/light_gray",
+                "llama/decor/decor_white": "llama/decor/white",
+                "llama/decor/decor_yellow": "llama/decor/yellow",
+                "llama/llama_brown": "llama/brown",
+                "llama/llama_creamy": "llama/creamy",
+                "llama/llama_gray": "llama/gray",
+                "llama/llama_white": "llama/white",
+            },
+            Deleted: [
+                "llama/llama",
+            ],
+        },
     },
     models: {
         item: {
