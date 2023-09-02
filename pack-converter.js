@@ -77,6 +77,63 @@ function ApplyUV(folderPath, fileName, uv) {
 }
 
 /**
+ * @param {string} hex
+ */
+function HEX2RGB(hex) {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+    return result ? {
+      r: parseInt(result[1], 16),
+      g: parseInt(result[2], 16),
+      b: parseInt(result[3], 16),
+    } : null;
+  }
+
+/**
+ * @param {string} folderPath
+ * @param {string} fileName
+ * @param {`#${string}`} tint
+ */
+function AddTint(folderPath, fileName, tint) {
+    const png = '.png'
+    const ems = '_e'
+
+    if (!fs.existsSync(Path.join(folderPath, fileName + png))) { return }
+
+    let convertables = []
+
+    convertables.push(Path.join(folderPath, fileName + png))
+
+    if (fs.existsSync(Path.join(folderPath, fileName + ems + png))) {
+        convertables.push(Path.join(folderPath, fileName + ems + png))
+    }
+    
+    for (const convertable of convertables) {
+        Jimp.read(convertable)
+            .then(img => {
+                img.color([
+                    {
+                        // @ts-ignore
+                        apply: "mix",
+                        params: [ HEX2RGB(tint), 60, ],
+                    }
+                ])
+                img.writeAsync(convertable)
+                    .catch(console.error)
+            })
+            .catch(console.error)
+    }
+}
+
+/**
+ * @param {string} folderPath
+ * @param {string} fileName
+ * @param {`#${string}`} tint
+ */
+function RemoveTint(folderPath, fileName, tint) {
+    
+}
+
+/**
  * @param {string} directory
  * @param {string?} extension
  * @returns {string[]}
@@ -119,11 +176,13 @@ function ReadDirRecursive(directory, extension = null) {
 /**
  * @param {string} inputFolder
  * @param {string} outputFolder
- * @param {Changes.Changes} changes
+ * @param {Changes.StringChanges} changes
  * @param {string[]} base
  * @param {Changes.Map<string, string>} uvs
+ * @param {Changes.SimpleChanges<Changes.Map<string, `#${string}`>>} tints
+ * @param {boolean} copyUnknowns
  */
-function ConvertTextures(inputFolder, outputFolder, changes, base, uvs) {
+function ConvertTextures(inputFolder, outputFolder, changes, base, uvs, tints, copyUnknowns) {
     if (!fs.existsSync(inputFolder)) {
         return
     }
@@ -141,7 +200,11 @@ function ConvertTextures(inputFolder, outputFolder, changes, base, uvs) {
         if (targetTexture === null) { continue }
 
         if (targetTexture === undefined) {
-            targetTexture = currentTexture
+            if (copyUnknowns || base.includes(currentTexture)) {
+                targetTexture = currentTexture
+            } else {
+                continue
+            }
         }
 
         CopyTexture(inputFolder, outputFolder, currentTexture, targetTexture)
@@ -149,6 +212,19 @@ function ConvertTextures(inputFolder, outputFolder, changes, base, uvs) {
         const uv = uvs[targetTexture]
         if (uv) {
             ApplyUV(outputFolder, targetTexture, uv)
+        }
+
+        /** @type {`#${string}` | undefined} */
+        const tintAdded = tints.Added[targetTexture]
+        /** @type {`#${string}` | undefined} */
+        const tintRemoved = tints.Deleted[targetTexture]
+
+        if (tintAdded && tintRemoved) {
+
+        } else if (tintAdded) {
+            AddTint(outputFolder, targetTexture, tintAdded)
+        } else if (tintRemoved) {
+            RemoveTint(outputFolder, targetTexture, tintRemoved)
         }
     }
 }
@@ -163,6 +239,177 @@ function ConvertTexturePath(path, format) {
     } else {
         return path.replace('blocks/', 'block/').replace('items/', 'item/')
     }
+}
+
+/**
+ * @param {string} filename
+ * 
+ * @param {'item' | 'block'} kind
+ * 
+ * @param {string} inputFolder
+ * @param {string} outputFolder
+ * 
+ * @param {string} inputNamespaceFolder
+ * @param {string} outputNamespaceFolder
+ * 
+ * @param {import('./changes').PackChanges} changes
+ * @param {import('./changes').PackStructure<string[]>} base
+ * 
+ * @param {import('./pack').PackFormat} outputFormat
+ */
+function ConvertModel(filename, kind, inputFolder, outputFolder, inputNamespaceFolder, outputNamespaceFolder, changes, base, outputFormat, force = false) {
+    const fileID = `${Path.basename(inputFolder)}/${filename}`
+
+    let outputFilename = Changes.Evaluate(changes.models[kind], filename)
+    if (outputFilename === undefined) {
+        if (!base.models[kind].includes(filename)) {
+            console.warn(`[PackConverter]: Unknown model ${fileID}`)
+        }
+        outputFilename = filename
+    }
+    if (!outputFilename) {
+        if (force) {
+            outputFilename = filename
+        } else {
+            return
+        }
+    }
+
+    /** @type {import('./model').ModelData} */ 
+    let model
+    try { model = JSON.parse(fs.readFileSync(Path.join(inputFolder, filename + '.json'), 'utf8')) }
+    catch (error) {
+        console.error(error)
+        return
+    }
+
+    if (model.parent) {
+        const parent = Utils.GetAsset(model.parent, 'minecraft')
+
+        if (parent.namespace !== 'minecraft') {
+            console.warn(`[PackConverter]: Model "${fileID}" has unknown namespace "${parent.namespace}", skipping ...`)
+            return
+        }
+
+        const parentName = Path.basename(parent.relativePath)
+        const parentKind = Path.dirname(parent.relativePath).split('/')[0]
+
+        if (parentKind === 'builtin') {
+            
+        } else if (parentKind !== 'item' && parentKind !== 'block') {
+            console.warn(`[PackConverter]: Unknown model directory name "${parentKind}" in model ${fileID}`)
+        } else {
+            /*
+            const parentPath = Path.join(outputNamespaceFolder, parent.relativePath)
+            if (parent.relativePath !== 'item/generated' && !fs.existsSync(parentPath + '.json')) {
+                console.warn(`[PackConverter]: Parent "${parent.relativePath}" for model "${fileID}" not found, skipping ...`)
+                continue
+            }
+            */
+
+            let convertedParent = Changes.Evaluate(changes.models[parentKind], parentName)
+    
+            if (convertedParent === undefined && base.models[kind].includes(parentName)) {
+                convertedParent = parentName
+            }
+
+            if (convertedParent === null) {
+                const parentPath = Path.join(inputNamespaceFolder, 'models', parent.relativePath + '.json')
+                if (fs.existsSync(parentPath)) {
+                    ConvertModel(
+                        parentName,
+                        parentKind,
+                        Path.join(inputNamespaceFolder, 'models', Path.dirname(parent.relativePath)),
+                        Path.join(outputNamespaceFolder, 'models', Path.dirname(parent.relativePath)),
+                        inputNamespaceFolder,
+                        outputNamespaceFolder,
+                        changes,
+                        base,
+                        outputFormat,
+                        true
+                    )
+                    console.log(`[PackConverter]: Model "${parent.relativePath}" has been force-copied because the model "${fileID}" needs it`)
+                } else {
+                    console.warn(`[PackConverter]: Model "${parent.relativePath}" has been deleted but the model "${fileID}" needs it`)
+                }
+            }
+            
+            if (convertedParent) {
+                model.parent = Path.join(Path.dirname(parent.relativePath), convertedParent).replace(/\\/g, '/')
+            }
+        }
+    }
+
+    if (model.textures) for (const texture in model.textures) {
+        const asset = Utils.GetAsset(model.textures[texture], 'minecraft')
+
+        if (asset.relativePath.startsWith('#')) continue
+
+        if (asset.namespace !== 'minecraft') {
+            console.warn(`[PackConverter]: Unknown texture namespace "${asset.namespace}" in model "${fileID}", skipping texture ...`)
+            continue
+        }
+
+        const textureKind = Path.dirname(asset.relativePath).split('/')[0]
+
+        if (textureKind !== 'item' && textureKind !== 'block') {
+            console.warn(`[PackConverter]: Unknown texture directory name "${textureKind}" in model ${fileID}, skipping texture ...`)
+            continue
+        }
+
+        const inputTexturePath = Path.join(inputNamespaceFolder, 'textures', asset.relativePath + '.png')
+
+        /*
+        if (!fs.existsSync(inputTexturePath)) {
+            console.warn(`[PackConverter]: Texture "${asset.relativePath}" for model "${fileID}" not found, skipping texture ...`)
+            continue
+        }
+        */
+
+        const relativePathOriginal = asset.relativePath
+        let relativePathConverted = ConvertTexturePath(relativePathOriginal, outputFormat)
+
+        let convertedTexture = Changes.Evaluate(changes.textures[textureKind], Path.basename(relativePathOriginal))
+
+        if (convertedTexture === null) {
+            console.warn(`[PackConverter]: Texture "${relativePathOriginal}" has been deleted but the model "${fileID}" needs it`)
+        }
+
+        if (convertedTexture === undefined) {
+            if (base.textures[textureKind].includes(Path.basename(relativePathOriginal))) {
+                convertedTexture = Path.basename(relativePathOriginal)
+            }
+        }
+
+        if (convertedTexture) {
+            relativePathConverted = Path.join(Path.dirname(ConvertTexturePath(relativePathOriginal, outputFormat)), convertedTexture).replace(/\\/g, '/')
+            model.textures[texture] = relativePathConverted
+        }
+
+        const outputTexturePath = Path.join(outputNamespaceFolder, 'textures', relativePathConverted) + '.png'
+        // @ts-ignore
+        model.textures[texture] = ConvertTexturePath(model.textures[texture], outputFormat)
+
+        if (!fs.existsSync(outputTexturePath)) {
+            if (!fs.existsSync(inputTexturePath)) {
+                if (convertedTexture && base.textures[textureKind].includes(convertedTexture)) {
+                    console.log(`[PackConverter]: Original texture "${asset.relativePath}" for model "${fileID}" not found`)
+                } else {
+                    console.warn(`[PackConverter]: Original texture "${asset.relativePath}" for model "${fileID}" not found`)
+                }
+            } else {
+                console.log(`[PackConverter]: Converted texture "${relativePathConverted}" for model "${fileID}" not found, copy non-converted texture`)
+                CopyTexture(
+                        Path.join(inputNamespaceFolder, 'textures', Path.dirname(relativePathOriginal)),
+                        Path.join(outputNamespaceFolder, 'textures', Path.dirname(relativePathConverted)),
+                        Path.basename(relativePathOriginal),
+                        Path.basename(relativePathConverted)
+                    )
+            }
+        }
+    }
+
+    fs.writeFileSync(Path.join(outputFolder, outputFilename + '.json'), JSON.stringify(model, null, ' '), 'utf8')
 }
 
 /**
@@ -203,126 +450,17 @@ function ConvertModels(kind, inputFolder, outputFolder, inputNamespaceFolder, ou
         if (ext !== 'json') { continue }
         const filename = file.substring(0, file.length - 5)
 
-        const fileID = `${Path.basename(inputFolder)}/${filename}`
-
-        let outputFilename = Changes.Evaluate(changes.models[kind], filename)
-        if (outputFilename === undefined) {
-            outputFilename = filename
-        }
-        if (!outputFilename) { continue }
-
-        /** @type {import('./model').ModelData} */ 
-        let model
-        try { model = JSON.parse(fs.readFileSync(Path.join(inputFolder, file), 'utf8')) }
-        catch (error) {
-            console.error(error)
-            continue
-        }
-
-        if (model.parent) {
-            const parent = Utils.GetAsset(model.parent, 'minecraft')
-    
-            if (parent.namespace !== 'minecraft') {
-                console.warn(`[PackConverter]: Model "${fileID}" has unknown namespace "${parent.namespace}", skipping ...`)
-                continue
-            }
-    
-            const parentName = Path.basename(parent.relativePath)
-            const parentKind = Path.dirname(parent.relativePath).split('/')[0]
-
-            if (parentKind !== 'item' && parentKind !== 'block') {
-                console.warn(`[PackConverter]: Unknown model directory name "${parentKind}" in model ${fileID}`)
-            } else {
-                /*
-                const parentPath = Path.join(outputNamespaceFolder, parent.relativePath)
-                if (parent.relativePath !== 'item/generated' && !fs.existsSync(parentPath + '.json')) {
-                    console.warn(`[PackConverter]: Parent "${parent.relativePath}" for model "${fileID}" not found, skipping ...`)
-                    continue
-                }
-                */
-    
-                let convertedParent = Changes.Evaluate(changes.models[parentKind], parentName)
-        
-                if (convertedParent === undefined && base.models[kind].includes(parentName)) {
-                    convertedParent = parentName
-                }
-    
-                if (convertedParent === null) {
-                    console.warn(`[PackConverter]: Model "${parent.relativePath}" has been deleted but the model "${fileID}" needs it`)
-                }
-                
-                if (convertedParent) {
-                    model.parent = Path.join(Path.dirname(parent.relativePath), convertedParent).replace(/\\/g, '/')
-                }
-            }
-        }
-
-        if (model.textures) for (const texture in model.textures) {
-            const asset = Utils.GetAsset(model.textures[texture], 'minecraft')
-
-            if (asset.relativePath.startsWith('#')) continue
-
-            if (asset.namespace !== 'minecraft') {
-                console.warn(`[PackConverter]: Unknown texture namespace "${asset.namespace}" in model "${fileID}", skipping texture ...`)
-                continue
-            }
-
-            const parentKind = Path.dirname(asset.relativePath).split('/')[0]
-
-            if (parentKind !== 'item' && parentKind !== 'block') {
-                console.warn(`[PackConverter]: Unknown texture directory name "${parentKind}" in model ${fileID}, skipping texture ...`)
-                continue
-            }
-
-            const inputTexturePath = Path.join(inputNamespaceFolder, 'textures', asset.relativePath + '.png')
-
-            /*
-            if (!fs.existsSync(inputTexturePath)) {
-                console.warn(`[PackConverter]: Texture "${asset.relativePath}" for model "${fileID}" not found, skipping texture ...`)
-                continue
-            }
-            */
-
-            const relativePathOriginal = asset.relativePath
-            let relativePathConverted = ConvertTexturePath(relativePathOriginal, outputFormat)
-
-            let convertedTexture = Changes.Evaluate(changes.textures[parentKind], Path.basename(relativePathOriginal))
-
-            if (convertedTexture === null) {
-                console.warn(`[PackConverter]: Texture "${relativePathOriginal}" has been deleted but the model "${fileID}" needs it`)
-            }
-
-            if (convertedTexture === undefined) {
-                if (base.textures[kind].includes(Path.basename(relativePathOriginal))) {
-                    convertedTexture = Path.basename(relativePathOriginal)
-                }
-            }
-
-            if (convertedTexture) {
-                relativePathConverted = Path.join(Path.dirname(ConvertTexturePath(relativePathOriginal, outputFormat)), convertedTexture).replace(/\\/g, '/')
-                model.textures[texture] = relativePathConverted
-            }
-
-            const outputTexturePath = Path.join(outputNamespaceFolder, 'textures', relativePathConverted) + '.png'
-            // @ts-ignore
-            model.textures[texture] = ConvertTexturePath(model.textures[texture], outputFormat)
-
-            if (!fs.existsSync(outputTexturePath)) {
-                if (!fs.existsSync(inputTexturePath)) {
-                    console.warn(`[PackConverter]: Original texture "${asset.relativePath}" for model "${file}" not found`)
-                } else {
-                    console.log(`[PackConverter]: Converted texture "${relativePathConverted}" for model "${file}" not found, copy non-converted texture`)
-                    CopyTexture(
-                            Path.join(inputNamespaceFolder, 'textures', Path.dirname(relativePathOriginal)),
-                            Path.join(outputNamespaceFolder, 'textures', Path.dirname(relativePathConverted)),
-                            Path.basename(relativePathOriginal),
-                            Path.basename(relativePathConverted)
-                        )
-                }
-            }
-        }
-
-        fs.writeFileSync(Path.join(outputFolder, outputFilename + '.json'), JSON.stringify(model, null, ' '), 'utf8')
+        ConvertModel(
+            filename,
+            kind,
+            inputFolder,
+            outputFolder,
+            inputNamespaceFolder,
+            outputNamespaceFolder,
+            changes,
+            base,
+            outputFormat
+        )
     }
 }
 
@@ -371,17 +509,22 @@ function Convert(inputVersion, outputVersion, input, output) {
     const inputTexturesItem = Path.join(inputTextures, (inputFormat < 4) ? 'items' : 'item')
     const outputTexturesItem = Path.join(outputTextures, (outputFormat < 4) ? 'items' : 'item')
 
-    ConvertTextures(inputTexturesItem, outputTexturesItem, changes.textures.item, base.textures.item, changes.uv.item)
+    ConvertTextures(inputTexturesItem, outputTexturesItem, changes.textures.item, base.textures.item, changes.uv.item, changes.tints.item, true)
 
     const inputTexturesBlock = Path.join(inputTextures, (inputFormat < 4) ? 'blocks' : 'block')
     const outputTexturesBlock = Path.join(outputTextures, (outputFormat < 4) ? 'blocks' : 'block')
 
-    ConvertTextures(inputTexturesBlock, outputTexturesBlock, changes.textures.block, base.textures.block, changes.uv.block)
+    ConvertTextures(inputTexturesBlock, outputTexturesBlock, changes.textures.block, base.textures.block, changes.uv.block, changes.tints.block, true)
 
     const inputTexturesEntity = Path.join(inputTextures, 'entity')
     const outputTexturesEntity = Path.join(outputTextures, 'entity')
 
-    ConvertTextures(inputTexturesEntity, outputTexturesEntity, changes.textures.entity, base.textures.entity, changes.uv.entity)
+    ConvertTextures(inputTexturesEntity, outputTexturesEntity, changes.textures.entity, base.textures.entity, changes.uv.entity, changes.tints.entity, true)
+
+    const inputTexturesGui = Path.join(inputTextures, 'gui')
+    const outputTexturesGui = Path.join(outputTextures, 'gui')
+
+    ConvertTextures(inputTexturesGui, outputTexturesGui, changes.textures.gui, base.textures.gui, changes.uv.gui, changes.tints.gui, false)
 
     const inputModels = Path.join(inputMinecraft, 'models')
     const outputModels = Path.join(outputMinecraft, 'models')

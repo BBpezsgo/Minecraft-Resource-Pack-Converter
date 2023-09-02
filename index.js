@@ -77,12 +77,14 @@ function CheckFull(versionA, versionB) {
         item: packA.GetTextures(formatA < 4 ? 'items' : 'item') ?? { },
         block: packA.GetTextures(formatA < 4 ? 'blocks' : 'block') ?? { },
         entity: packA.GetTexturesRecursive('entity') ?? { },
+        gui: packA.GetTexturesRecursive('gui') ?? { },
     }
     
     const texturesB = {
         item: packB.GetTextures(formatB < 4 ? 'items' : 'item') ?? { },
         block: packB.GetTextures(formatB < 4 ? 'blocks' : 'block') ?? { },
         entity: packB.GetTexturesRecursive('entity') ?? { },
+        gui: packB.GetTexturesRecursive('gui') ?? { },
     }
 
     const modelsA = {
@@ -102,7 +104,7 @@ function CheckFull(versionA, versionB) {
         /** @type {import('./changes').Map<string, string>} */ collectionB,
         /** @type {import('./changes').PackChangesNullable} */ changes,
         /** @type {'texture' | 'model'} */ kind1,
-        /** @type {'item' | 'block' | 'entity'} */ kind2) {
+        /** @type {'item' | 'block' | 'entity' | 'gui'} */ kind2) {
 
         /** @type {'textures' | 'models'} */
         let _kind1
@@ -178,6 +180,7 @@ function CheckFull(versionA, versionB) {
     Check(texturesA.item, texturesB.item, changes, 'texture', 'item')
     Check(texturesA.block, texturesB.block, changes, 'texture', 'block')
     Check(texturesA.entity, texturesB.entity, changes, 'texture', 'entity')
+    Check(texturesA.gui, texturesB.gui, changes, 'texture', 'gui')
     Check(modelsA.item, modelsB.item, changes, 'model', 'item')
     Check(modelsA.block, modelsB.block, changes, 'model', 'block')
 

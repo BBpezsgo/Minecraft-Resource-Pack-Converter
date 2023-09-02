@@ -519,5 +519,22 @@
                 "zombie_villager/zombie_smith",
             ],
         },
+        gui: {
+            Added: [
+                "accessibility",
+                "checkbox",
+                
+                "container/blast_furnace",
+                "container/cartography_table",
+                "container/grindstone",
+                "container/loom",
+                "container/smoker",
+                "container/stonecutter",
+                "container/villager2"
+            ],
+            Deleted: [
+                "container/villager"
+            ],
+        },
     },
 })

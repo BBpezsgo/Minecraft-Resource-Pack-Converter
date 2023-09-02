@@ -1504,6 +1504,7 @@
             "yellow_stained_glass_pane_side_alt",
             "yellow_wool",
         ],
+        entity: undefined,
     },
     textures: {
         item: [
@@ -1917,7 +1918,7 @@
             "daylight_detector_inverted_top",
             "daylight_detector_side",
             "daylight_detector_top",
-            "deadbush",
+            "dead_bush",
             "debug",
             "debug2",
             "destroy_stage_0",
@@ -2292,5 +2293,66 @@
         entity: [
             
         ],
+        gui: [
+            "bars",
+            "book",
+            "demo_background",
+            "icons",
+            "options_background",
+            "resource_packs",
+            "server_selection",
+            "spectator_widgets",
+            "stream_indicator",
+            "widgets",
+            "world_selection",
+
+            "achievement/achievement_background",
+            "achievement/achievement_icons",
+
+            "container/anvil",
+            "container/achievement_icons",
+            "container/beacon",
+            "container/brewing_stand",
+            "container/crafting_table",
+            "container/dispenser",
+            "container/enchanting_table",
+            "container/furnace",
+            "container/generic_54",
+            "container/hopper",
+            "container/horse",
+            "container/inventory",
+            "container/shulker_box",
+            "container/stats_icons",
+            "container/villager",
+
+            "container/creative_inventory/tab_inventory",
+            "container/creative_inventory/tab_item_search",
+            "container/creative_inventory/tab_items",
+            "container/creative_inventory/tabs",
+
+            "presets/chaos",
+            "presets/delight",
+            "presets/drought",
+            "presets/isles",
+            "presets/luck",
+            "presets/madness",
+            "presets/water",
+
+            "title/minecraft",
+            "title/mojang",
+
+            "title/background/panorama_0",
+            "title/background/panorama_1",
+            "title/background/panorama_2",
+            "title/background/panorama_3",
+            "title/background/panorama_4",
+            "title/background/panorama_5",
+        ],
+    },
+    uv: {
+        block: [],
+        item: [],
+        entity: [],
+        gui: [],
     },
 })

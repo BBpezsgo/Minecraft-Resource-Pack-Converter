@@ -207,5 +207,28 @@
                 "parrot/parrot_yellow_blue",
             ],
         },
+        gui: {
+            Added: [
+                "recipe_book",
+                "toasts",
+
+                "container/recipe_background",
+
+                "title/edition",
+                
+                "advancements/backgrounds/adventure",
+                "advancements/backgrounds/end",
+                "advancements/backgrounds/husbandry",
+                "advancements/backgrounds/nether",
+                "advancements/backgrounds/stone",
+                "advancements/tabs",
+                "advancements/widgets",
+                "advancements/window",
+            ],
+            Deleted: [
+                "achievement/achievement_background",
+                "achievement/achievement_icons",
+            ],
+        },
     },
 })

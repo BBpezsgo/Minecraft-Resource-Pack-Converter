@@ -419,7 +419,6 @@
         },
         block: {
             Added: [
-                /*
                 "acacia_door_bottom_left",
                 "acacia_door_bottom_left_open",
                 "acacia_door_bottom_right",
@@ -446,18 +445,7 @@
                 "birch_door_top_left_open",
                 "birch_door_top_right",
                 "birch_door_top_right_open",
-                */
 
-                "cherry_door_bottom_left",
-                "cherry_door_bottom_left_open",
-                "cherry_door_bottom_right",
-                "cherry_door_bottom_right_open",
-                "cherry_door_top_left",
-                "cherry_door_top_left_open",
-                "cherry_door_top_right",
-                "cherry_door_top_right_open",
-
-                /*
                 "crimson_door_bottom_left",
                 "crimson_door_bottom_left_open",
                 "crimson_door_bottom_right",
@@ -529,7 +517,15 @@
                 "warped_door_top_left_open",
                 "warped_door_top_right",
                 "warped_door_top_right_open",
-                */
+
+                "cherry_door_bottom_left",
+                "cherry_door_bottom_left_open",
+                "cherry_door_bottom_right",
+                "cherry_door_bottom_right_open",
+                "cherry_door_top_left",
+                "cherry_door_top_left_open",
+                "cherry_door_top_right",
+                "cherry_door_top_right_open",
 
                 "acacia_hanging_sign",
                 "bamboo_block",
@@ -746,7 +742,6 @@
                 "warped_hanging_sign",
             ],
             Deleted: [
-                /*
                 "acacia_door_bottom",
                 "acacia_door_bottom_hinge",
                 "acacia_door_top",
@@ -786,8 +781,7 @@
                 "warped_door_bottom",
                 "warped_door_bottom_hinge",
                 "warped_door_top",
-                "warped_door_top_hinge"
-                */
+                "warped_door_top_hinge",
             ],
         },
     },
@@ -1045,6 +1039,38 @@
             Deleted: [
                 "alex",
                 "steve",
+            ],
+        },
+        gui: {
+            Added: [
+                "chat_tags",
+                "checkmark",
+                "container/smithing",
+                "footer_separator",
+                "hanging_signs/acacia",
+                "hanging_signs/bamboo",
+                "hanging_signs/birch",
+                "hanging_signs/cherry",
+                "hanging_signs/crimson",
+                "hanging_signs/dark_oak",
+                "hanging_signs/jungle",
+                "hanging_signs/mangrove",
+                "hanging_signs/oak",
+                "hanging_signs/spruce",
+                "hanging_signs/warped",
+                "header_separator",
+                "info_icon",
+                "light_dirt_background",
+                "report_button",
+                "slider",
+                "tab_button",
+                "unseen_notification",
+            ],
+            Renamed: {
+                "container/smithing": "container/legacy_smithing"
+            },
+            Deleted: [
+
             ],
         },
     },

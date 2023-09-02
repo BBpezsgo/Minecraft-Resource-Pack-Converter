@@ -32,11 +32,35 @@ function NoChanges() {
                 Renamed: {},
                 Deleted: [],
             },
+            gui: {
+                Added: [],
+                Renamed: {},
+                Deleted: [],
+            },
         },
         uv: {
             block: { },
             item: { },
             entity: { },
+            gui: { },
+        },
+        tints: {
+            item: {
+                Added: { },
+                Deleted: { },
+            },
+            block: {
+                Added: { },
+                Deleted: { },
+            },
+            entity: {
+                Added: { },
+                Deleted: { },
+            },
+            gui: {
+                Added: { },
+                Deleted: { },
+            },
         },
     }
 }
@@ -180,13 +204,46 @@ function GetKey(value, obj) {
 }
 
 /**
- * @param {import('./changes').Changes} changes
+ * @param {import('./changes').SimpleChanges<any>} changes
  */
-function Inverse(changes) {
-    /** @type {import('./changes').Changes} */
+function InverseSimpleChanges(changes) {
+    /** @type {import('./changes').SimpleChanges<any>} */
+    let inversed = {
+        Added: Array.isArray(changes.Added) ? [] : {},
+        Deleted: Array.isArray(changes.Deleted) ? [] : {},
+    }
+
+    if (Array.isArray(changes.Added)) {
+        for (const added of changes.Added) {
+            inversed.Deleted.push(added)
+        }
+    } else {
+        for (const added in changes.Added) {
+            inversed.Deleted[added] = changes.Added[added]
+        }
+    }
+    
+    if (Array.isArray(changes.Deleted)) {
+        for (const deleted of changes.Deleted) {
+            inversed.Added.push(deleted)
+        }
+    } else {
+        for (const deleted in changes.Deleted) {
+            inversed.Added[deleted] = changes.Deleted[deleted]
+        }
+    }
+
+    return inversed
+}
+
+/**
+ * @param {import('./changes').StringChanges} changes
+ */
+function InverseStringChanges(changes) {
+    /** @type {import('./changes').StringChanges} */
     let inversed = {
         Added: [],
-        Renamed: {},
+        Renamed: { },
         Deleted: [],
     }
 
@@ -202,7 +259,7 @@ function Inverse(changes) {
     for (const deleted of changes.Deleted) {
         inversed.Added.push(deleted)
     }
-
+    
     return inversed
 }
 
@@ -234,32 +291,53 @@ function InverseUVs(uvs) {
 function InversePack(changes) {
     return {
         models: {
-            block: Inverse(changes.models.block),
-            item: Inverse(changes.models.item),
+            block: InverseStringChanges(changes.models.block),
+            item: InverseStringChanges(changes.models.item),
             entity: undefined,
         },
         textures: {
-            block: Inverse(changes.textures.block),
-            item: Inverse(changes.textures.item),
-            entity: Inverse(changes.textures.entity),
+            block: InverseStringChanges(changes.textures.block),
+            item: InverseStringChanges(changes.textures.item),
+            entity: InverseStringChanges(changes.textures.entity),
+            gui: InverseStringChanges(changes.textures.gui),
         },
         uv: {
             block: InverseUVs(changes.uv.block),
             item: InverseUVs(changes.uv.item),
             entity: InverseUVs(changes.uv.entity),
+            gui: InverseUVs(changes.uv.gui),
+        },
+        tints: {
+            block: InverseSimpleChanges(changes.tints.block),
+            item: InverseSimpleChanges(changes.tints.item),
+            entity: InverseSimpleChanges(changes.tints.entity),
+            gui: InverseSimpleChanges(changes.tints.gui),
         },
     }
 }
 
 /**
- * @param {import('./changes').ChangesNullable | null | undefined} changes
- * @returns {import('./changes').Changes}
+ * @param {import('./changes').StringChangesNullable | null | undefined} changes
+ * @returns {import('./changes').StringChanges}
  */
-function ToNonull(changes) {
+function ToNonullStringChanges(changes) {
     return {
         Added: changes?.Added ?? [],
         Renamed: changes?.Renamed ?? {},
         Deleted: changes?.Deleted ?? [],
+    }
+}
+
+/**
+ * @template T
+ * @param {import('./changes').SimpleChangesNullable<T> | null | undefined} changes
+ * @param {T} def
+ * @returns {import('./changes').SimpleChanges<T>}
+ */
+function ToNonullSimpleChanges(changes, def) {
+    return {
+        Added: changes?.Added ?? def,
+        Deleted: changes?.Deleted ?? def,
     }
 }
 
@@ -270,28 +348,36 @@ function ToNonull(changes) {
 function ToNonullPack(changes) {
     return {
         models: {
-            block: ToNonull(changes?.models?.block),
-            item: ToNonull(changes?.models?.item),
+            block: ToNonullStringChanges(changes?.models?.block),
+            item: ToNonullStringChanges(changes?.models?.item),
             entity: undefined,
         },
         textures: {
-            block: ToNonull(changes?.textures?.block),
-            item: ToNonull(changes?.textures?.item),
-            entity: ToNonull(changes?.textures?.entity),
+            block: ToNonullStringChanges(changes?.textures?.block),
+            item: ToNonullStringChanges(changes?.textures?.item),
+            entity: ToNonullStringChanges(changes?.textures?.entity),
+            gui: ToNonullStringChanges(changes?.textures?.gui),
         },
         uv: {
-            block: ToNonull(changes?.uv?.block),
-            item: ToNonull(changes?.uv?.item),
-            entity: ToNonull(changes?.uv?.entity),
+            block: ToNonullStringChanges(changes?.uv?.block),
+            item: ToNonullStringChanges(changes?.uv?.item),
+            entity: ToNonullStringChanges(changes?.uv?.entity),
+            gui: ToNonullStringChanges(changes?.uv?.gui),
+        },
+        tints: {
+            block: ToNonullSimpleChanges(changes?.tints?.block, { }),
+            item: ToNonullSimpleChanges(changes?.tints?.item, { }),
+            entity: ToNonullSimpleChanges(changes?.tints?.entity, { }),
+            gui: ToNonullSimpleChanges(changes?.tints?.gui, { }),
         },
     }
 }
 
 /**
- * @param {import('./changes').Changes} changesA
- * @param {import('./changes').ChangesNullable | undefined} changesB
+ * @param {import('./changes').StringChanges} changesA
+ * @param {import('./changes').StringChangesNullable | undefined} changesB
  */
-function ChainChanges(changesA, changesB) {
+function ChainStringChanges(changesA, changesB) {
     if (!changesB) return changesA
 
     let result = {
@@ -317,6 +403,73 @@ function ChainChanges(changesA, changesB) {
         }
         if (!result.Deleted.includes(deleted)) {
             result.Deleted.push(deleted)
+        }
+    }
+
+    return result
+}
+
+/**
+ * @template T
+ * @param {import('./changes').SimpleChanges<T>} changesA
+ * @param {import('./changes').SimpleChangesNullable<T> | undefined} changesB
+ */
+function ChainSimpleChanges(changesA, changesB) {
+    if (!changesB) return changesA
+
+    let result = {
+        ...changesA,
+    }
+
+    if (changesB.Added) {
+        if (Array.isArray(changesB.Added)) {
+            if (!Array.isArray(result.Deleted)) throw new Error()
+            if (!Array.isArray(result.Added)) throw new Error()
+
+            for (const added of changesB.Added) {
+                if (!result.Added.includes(added)) {
+                    result.Added.push(added)
+                }
+            }
+        } else {
+            if (Array.isArray(result.Deleted)) throw new Error()
+            if (Array.isArray(result.Added)) throw new Error()
+
+            for (const added in changesB.Added) {
+                const key = added.toString()
+                if (!result.Added[key]) {
+                    result.Added[key] = changesB.Added[added]
+                }
+            }
+        }
+    }
+
+    if (changesB.Deleted) {
+        if (Array.isArray(changesB.Deleted)) {
+            if (!Array.isArray(result.Deleted)) throw new Error()
+            if (!Array.isArray(result.Added)) throw new Error()
+
+            for (const deleted of changesB.Deleted) {
+                for (let i = result.Added.length - 1; i >= 0; i--) {
+                    if (result.Added[i] === deleted) {
+                        result.Added.splice(i, 1)
+                    }
+                }
+                if (!result.Deleted.includes(deleted)) {
+                    result.Deleted.push(deleted)
+                }
+            }
+        } else {
+            if (Array.isArray(result.Deleted)) throw new Error()
+            if (Array.isArray(result.Added)) throw new Error()
+
+            for (const deleted in changesB.Deleted) {
+                const key = deleted.toString()
+                result.Added[key] = undefined
+                if (!result.Deleted[key]) {
+                    result.Deleted[key] = changesB.Deleted[key]
+                }
+            }
         }
     }
 
@@ -370,14 +523,20 @@ function ChainPackChanges(from, to) {
         if (!version) { continue }
         const currentChanges = versionHistory[version]
 
-        changes.models.block = ChainChanges(changes.models.block, currentChanges.models?.block)
-        changes.models.item = ChainChanges(changes.models.item, currentChanges.models?.item)
-        changes.textures.block = ChainChanges(changes.textures.block, currentChanges.textures?.block)
-        changes.textures.item = ChainChanges(changes.textures.item, currentChanges.textures?.item)
-        changes.textures.entity = ChainChanges(changes.textures.entity, currentChanges.textures?.entity)
+        changes.models.block = ChainStringChanges(changes.models.block, currentChanges.models?.block)
+        changes.models.item = ChainStringChanges(changes.models.item, currentChanges.models?.item)
+
+        changes.textures.block = ChainStringChanges(changes.textures.block, currentChanges.textures?.block)
+        changes.textures.item = ChainStringChanges(changes.textures.item, currentChanges.textures?.item)
+        changes.textures.entity = ChainStringChanges(changes.textures.entity, currentChanges.textures?.entity)
+        changes.textures.gui = ChainStringChanges(changes.textures.gui, currentChanges.textures?.gui)
+
+        changes.tints.block = ChainSimpleChanges(changes.tints.block, currentChanges.tints?.block)
+
         changes.uv.block = ChainUVs(changes.uv.block, currentChanges.uv?.block)
         changes.uv.item = ChainUVs(changes.uv.item, currentChanges.uv?.item )
         changes.uv.entity = ChainUVs(changes.uv.entity, currentChanges.uv?.entity)
+        changes.uv.gui = ChainUVs(changes.uv.gui, currentChanges.uv?.gui)
     }
 
     return changes
@@ -405,7 +564,7 @@ function CollectPackChanges(from, to) {
 }
 
 /**
- * @param {import('./changes').Changes} changes
+ * @param {import('./changes').StringChanges} changes
  * @param {string} value
  * @returns {string | null | undefined}
  * Return values:
@@ -428,15 +587,9 @@ function Evaluate(changes, value) {
 
 module.exports = {
     VersionHistory: versionHistory,
-    NoChanges: NoChanges,
+    NoChanges,
     GetKey,
     GetPair,
-    Inverse,
-    InversePack,
-    ToNonull,
-    ToNonullPack,
-    ChainChanges,
-    ChainPackChanges,
     Base,
     CollectPackChanges,
     Evaluate,

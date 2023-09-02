@@ -173,5 +173,14 @@
                 "decorated_pot/pottery_pattern_skull": "decorated_pot/skull_pottery_pattern",
             },
         },
+        gui: {
+            Added: [
+                "title/minceraft",
+                "title/minecraft",
+            ],
+            Deleted: [
+                "title/minecraft",
+            ],
+        },
     },
 })

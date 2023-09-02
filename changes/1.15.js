@@ -72,6 +72,16 @@
                 "iron_golem",
             ],
         },
+        gui: {
+            Deleted: [
+                "presets/chaos",
+                "presets/delight",
+                "presets/drought",
+                "presets/luck",
+                "presets/madness",
+                "presets/water",
+            ]
+        },
     },
     uv: {
         entity: {

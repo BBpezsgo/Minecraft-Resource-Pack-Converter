@@ -615,6 +615,15 @@
                 "llama/llama",
             ],
         },
+        gui: {
+            Added: [
+                "recipe_button",
+                "title/background/panorama_overlay",
+            ],
+            Deleted: [
+                "container/recipe_background",
+            ],
+        },
     },
     models: {
         item: {
@@ -1709,6 +1718,15 @@
 
                 "anvil",
             ],
+        },
+    },
+    tints: {
+        block: {
+            Deleted: {
+                "water_flow": "#0000ff",
+                "water_overlay": "#0000ff",
+                "water_still": "#0000ff",
+            },
         },
     },
 })

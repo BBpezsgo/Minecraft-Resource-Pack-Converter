@@ -16,22 +16,29 @@ export type TheVersionHistory = {
     '1.20': PackChangesNullable
 }
 
+export type HexColor = `#${string}`
+
+export type TexturesStructureNullable<T> = {
+    item?: T
+    block?: T
+    entity?: T
+    gui?: T
+}
+
+export type TexturesStructure<T> = {
+    item: T
+    block: T
+    entity: T
+    gui: T
+}
+
 export type PackStructureNullable<T> = {
     models?: {
         item?: T
         block?: T
         entity?: undefined
     }
-    textures?: {
-        item?: T
-        block?: T
-        entity?: T
-    }
-    uv?: {
-        item?: Map<string, string>
-        block?: Map<string, string>
-        entity?: Map<string, string>
-    }
+    textures?: TexturesStructureNullable<T>
 }
 
 export type PackStructure<T> = {
@@ -40,32 +47,43 @@ export type PackStructure<T> = {
         block: T
         entity: undefined
     }
-    textures: {
-        item: T
-        block: T
-        entity: T
-    }
-    uv: {
-        item: Map<string, string>
-        block: Map<string, string>
-        entity: Map<string, string>
-    }
+    textures: TexturesStructure<T>
 }
 
-export type Changes = {
+export type SimpleChanges<T = string[]> = {
+    Added: T
+    Deleted: T
+}
+
+export type SimpleChangesNullable<T = string[]> = {
+    Added?: T
+    Deleted?: T
+}
+
+export type StringChanges = {
     Added: string[]
     Renamed: Map<string, string>
     Deleted: string[]
 }
 
-export type ChangesNullable = {
+export type StringChangesNullable = {
     Added?: string[]
     Renamed?: Map<string, string>
     Deleted?: string[]
 }
 
-export type PackChanges = PackStructure<Changes>
-export type PackChangesNullable = PackStructureNullable<ChangesNullable>
+export type Changes<T = string[]> = StringChanges | (SimpleChanges<T> & { Renamed: undefined })
+
+export type ChangesNullable<T = string[]> = StringChangesNullable | (SimpleChangesNullable<T> & { Renamed: undefined })
+
+export type PackChanges = PackStructure<StringChanges> & {
+    uv: TexturesStructure<Map<string, string>>
+    tints: TexturesStructure<SimpleChanges<Map<string, HexColor>>>
+}
+export type PackChangesNullable = PackStructureNullable<StringChangesNullable> & {
+    uv?: TexturesStructureNullable<Map<string, string>>
+    tints?: TexturesStructureNullable<SimpleChangesNullable<Map<string, HexColor>>>
+}
 
 export type Version =
     '1.6' |
@@ -97,19 +115,7 @@ function GetPair<TKey, TValue>(id: TKey | TValue, obj: Map<TKey, TValue>): Pair<
 
 function GetKey<TKey, TValue>(value: TValue, obj: Map<TKey, TValue>) : TKey | null
 
-function Inverse(changes: Changes): Changes
-
-function InversePack(changes: PackChanges): PackChanges
-
-function ToNonull(changes: ChangesNullable | null | undefined): Changes
-
-function ToNonullPack(changes: PackChangesNullable): PackChanges
-
 function Base(): PackStructure<string[]>
-
-function ChainChanges(changesA: Changes, changesB: ChangesNullable | undefined): Changes
-
-function ChainPackChanges(from: Version, to: Version): PackChanges
 
 function CollectPackChanges(from: Version, to: Version): PackChanges
 
@@ -130,12 +136,6 @@ export {
     NoChanges,
     GetKey,
     GetPair,
-    Inverse,
-    InversePack,
-    ToNonull,
-    ToNonullPack,
-    ChainChanges,
-    ChainPackChanges,
     Base,
     CollectPackChanges,
     Evaluate,

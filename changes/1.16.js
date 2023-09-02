@@ -445,5 +445,15 @@
                 "zombie_pigman": "piglin/zombified_piglin",
             },
         },
+        gui: {
+            Added: [
+                "container/gamemode_switcher",
+                "container/smithing",
+                "social_interactions",
+            ],
+            Renamed: {
+                "title/mojang": "title/mojangstudios",
+            }
+        },
     }
 })

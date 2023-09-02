@@ -708,5 +708,10 @@
                 "zombie/zombie_villager",
             ],
         },
+        gui: {
+            Added: [
+                "container/bundle",
+            ],
+        },
     }
 })
