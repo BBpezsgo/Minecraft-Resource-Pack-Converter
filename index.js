@@ -9,6 +9,7 @@ const Changes = require('./changes')
 const VersionHistory = Changes.VersionHistory
 const Utils = require('./utils')
 const Colors = require('./colors')
+const Basic = require('./basic')
 const UV = require('./uv')
 const {
     DefaultResourcePacksPath,
@@ -100,8 +101,8 @@ function CheckFull(versionA, versionB) {
     const generatedResult = Changes.NoChanges()
 
     const Check = function(
-        /** @type {import('./changes').Map<string, string>} */ collectionA,
-        /** @type {import('./changes').Map<string, string>} */ collectionB,
+        /** @type {import('./basic').Map<string, string>} */ collectionA,
+        /** @type {import('./basic').Map<string, string>} */ collectionB,
         /** @type {import('./changes').PackChangesNullable} */ changes,
         /** @type {'texture' | 'model'} */ kind1,
         /** @type {'item' | 'block' | 'entity' | 'gui'} */ kind2) {
@@ -152,7 +153,7 @@ function CheckFull(versionA, versionB) {
         }
         
         for (const name in collectionB) {
-            const key = Changes.GetKey(name, renamed)
+            const key = Basic.GetKey(name, renamed)
             if (!collectionA[name]) {
                 if (added.includes(name)) {
                     if (key) {
@@ -319,7 +320,8 @@ function Entry() {
         PackConverter.Convert('1.20', '1.12', Packs[convertable], Path.join(VanillaResourcePacksPath, convertable))    
     } else {
         LogAnalyser.Print()
-    }    
+    }
 }
 
 Entry()
+console.log('Done')

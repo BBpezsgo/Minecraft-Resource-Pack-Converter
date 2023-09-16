@@ -1,3 +1,5 @@
+import { Map } from "./basic"
+
 export type TheVersionHistory = {
     '1.6': PackChangesNullable
     '1.7': PackChangesNullable
@@ -102,22 +104,9 @@ export type Version =
     '1.19' |
     '1.20'
 
-export type Map<TKey, TValue> = {
-    [key: TKey]: TValue
-}
+declare function Base(): PackStructure<string[]>
 
-export type Pair<TKey, TValue> = {
-    key: TKey
-    value: TValue
-}
-
-function GetPair<TKey, TValue>(id: TKey | TValue, obj: Map<TKey, TValue>): Pair<TKey, TValue> |null
-
-function GetKey<TKey, TValue>(value: TValue, obj: Map<TKey, TValue>) : TKey | null
-
-function Base(): PackStructure<string[]>
-
-function CollectPackChanges(from: Version, to: Version): PackChanges
+declare function CollectPackChanges(from: Version, to: Version): PackChanges
 
 /**
  * Return values:
@@ -125,17 +114,15 @@ function CollectPackChanges(from: Version, to: Version): PackChanges
  * - `null`: Deleted
  * - `undefined`: Unknown or not registered item
  */
-function Evaluate(changes: Changes, value: string): string | null | undefined
+declare function Evaluate(changes: Changes, value: string): string | null | undefined
 
-const VersionHistory: TheVersionHistory
+declare const VersionHistory: TheVersionHistory
 
-function NoChanges(): PackChanges
+declare function NoChanges(): PackChanges
 
 export {
     VersionHistory,
     NoChanges,
-    GetKey,
-    GetPair,
     Base,
     CollectPackChanges,
     Evaluate,

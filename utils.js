@@ -65,13 +65,15 @@ function ParseCSV(csv) {
 }
 
 /**
+ * @template T
  * @param {string | undefined} assetRaw
- * @param {string?} defaultNamespace
- * @returns {{ namespace: string | null; relativePath: string; }}
+ * @param {T} defaultNamespace
+ * @returns {{ namespace: string | T; relativePath: string; }}
  */
-function GetAsset(assetRaw, defaultNamespace = null) {
+function GetAsset(assetRaw, defaultNamespace) {
     if (!assetRaw) throw new Error(`Field "assetRaw" is null`)
 
+    /** @type {T | string} */
     let namespace = defaultNamespace
     if (assetRaw.includes(':')) {
         namespace = assetRaw.split(':')[0]

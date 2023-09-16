@@ -164,46 +164,6 @@ function Base() {
 }
 
 /**
- * @param {string} id
- * @param {{ [id: string]: string }} obj
- */
-function GetPair(id, obj) {
-    if (obj[id]) {
-        return {
-            key: id,
-            value: obj[id],
-        }
-    }
-
-    const keys = Object.keys(obj)
-    for (const key of keys) {
-        if (obj[key] === id) {
-            return {
-                key: key,
-                value: obj[key],
-            }
-        }
-    }
-
-    return null
-}
-
-/**
- * @param {string} value
- * @param {{ [id: string]: string }} obj
- */
-function GetKey(value, obj) {
-    const keys = Object.keys(obj)
-    for (const key of keys) {
-        if (obj[key] === value) {
-            return key
-        }
-    }
-
-    return null
-}
-
-/**
  * @param {import('./changes').SimpleChanges<any>} changes
  */
 function InverseSimpleChanges(changes) {
@@ -264,8 +224,8 @@ function InverseStringChanges(changes) {
 }
 
 /**
- * @param {import('./changes').Map<string, string>} uvs
- * @returns {import('./changes').Map<string, string>}
+ * @param {import('./basic').Map<string, string>} uvs
+ * @returns {import('./basic').Map<string, string>}
  */
 function InverseUVs(uvs) {
     const result = { }
@@ -477,9 +437,9 @@ function ChainSimpleChanges(changesA, changesB) {
 }
 
 /**
- * @param {import('./changes').Map<string, string>} uvsA
- * @param {import('./changes').Map<string, string> | undefined} uvsB
- * @returns {import('./changes').Map<string, string>}
+ * @param {import('./basic').Map<string, string>} uvsA
+ * @param {import('./basic').Map<string, string> | undefined} uvsB
+ * @returns {import('./basic').Map<string, string>}
  */
 function ChainUVs(uvsA, uvsB) {
     if (!uvsB) return uvsA
@@ -588,8 +548,6 @@ function Evaluate(changes, value) {
 module.exports = {
     VersionHistory: versionHistory,
     NoChanges,
-    GetKey,
-    GetPair,
     Base,
     CollectPackChanges,
     Evaluate,
