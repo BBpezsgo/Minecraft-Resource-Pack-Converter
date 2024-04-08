@@ -1,15 +1,15 @@
 const fs = require('fs')
-const Colors = require('./colors')
-const Path = require('path')
-const Constants = require('./constants')
+const colors = require('./colors')
+const path = require('path')
+const constants = require('./constants')
 const PATH_LOG_GENERAL = 'logs/latest.log'
-const PATH_LOGS = Path.join(Constants.Minecraft, PATH_LOG_GENERAL)
+const PATH_LOGS = path.join(constants.Minecraft, PATH_LOG_GENERAL)
 
-function Clear() {
+function clear() {
     fs.writeFileSync(PATH_LOGS, '', 'utf8')
 }
 
-function Load() {
+function load() {
     const contentRaw = fs.readFileSync(PATH_LOGS, 'utf8')
     const contentLines = contentRaw.split('\n')
 
@@ -75,23 +75,23 @@ function Load() {
     return parsed
 }
 
-function Print() {
-    const parsed =  Load()
+function print() {
+    const parsed = load()
 
     for (const line of parsed) {
         let out = ''
         if (line.content.startsWith('*** ')) {
             out += '\n'
-            out += Colors.FgMagenta
+            out += colors.FgMagenta
             out += line.content
             out += '\n'
         } else if (line.severity) {
             if (line.severity === 'WARN') {
-                out += Colors.FgYellow
+                out += colors.FgYellow
             } else if (line.severity === 'INFO') {
-                out += Colors.FgGray
+                out += colors.FgGray
             } else if (line.severity === 'ERROR') {
-                out += Colors.FgRed
+                out += colors.FgRed
             } else {
                 console.log(line.severity)
                 continue
@@ -100,13 +100,13 @@ function Print() {
         } else {
             out += line.content
         }
-        out += Colors.Reset
+        out += colors.Reset
         console.log(out)
     }
 }
 
 module.exports = {
-    Clear,
-    Load,
-    Print,
+    clear,
+    load,
+    print,
 }

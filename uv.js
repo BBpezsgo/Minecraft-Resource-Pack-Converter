@@ -1,27 +1,22 @@
 
 const Jimp = require('jimp')
-const { Clamp } = require('./utils')
+const { clamp } = require('./utils')
 
 /**
  * @param {number} width
  * @param {number} height
  * @returns {Promise<Jimp>}
  */
-function MakeUV(width, height) {
-    return new Promise((resolve, reject) => {
-        Jimp.create(width, height)
-            .then(img => {
-                const cw = 255 / width
-                const ch = 255 / height
-                for (let y = 0; y < height; y++) {
-                    for (let x = 0; x < width; x++) {
-                        img.setPixelColor(Jimp.rgbaToInt(x * cw, y * ch, 0, 255), x, y)
-                    }
-                }
-                resolve(img)
-            })
-            .catch(reject)
-    })
+async function makeUV(width, height) {
+    const img = await Jimp.create(width, height)
+    const cw = 255 / width
+    const ch = 255 / height
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            img.setPixelColor(Jimp.rgbaToInt(x * cw, y * ch, 0, 255), x, y)
+        }
+    }
+    return img
 }
 
 /**
@@ -30,16 +25,9 @@ function MakeUV(width, height) {
  * @param {string} path
  * @returns {Promise<void>}
  */
-function MakeUVFile(width, height, path) {
-    return new Promise((resolve, reject) => {
-        MakeUV(width, height)
-            .then(img => {
-                img.writeAsync(path)
-                    .then(() => { resolve() })
-                    .catch(reject)
-            })
-            .catch(reject)
-    })
+async function makeUVFile(width, height, path) {
+    const img = await makeUV(width, height)
+    await img.writeAsync(path)
 }
 
 /**
@@ -49,7 +37,7 @@ function MakeUVFile(width, height, path) {
  * @param {number} width
  * @param {number} height
  */
-function GetUVPoint(uv, x, y, width, height) {
+function getUVPoint(uv, x, y, width, height) {
     const uvW = uv.getWidth()
     const uvH = uv.getHeight()
 
@@ -69,8 +57,8 @@ function GetUVPoint(uv, x, y, width, height) {
  * @param {number} width
  * @param {number} height
  */
-function ApplyUVToPoint(uv, x, y, width, height) {
-    const uvPoint = GetUVPoint(uv, x, y, width, height)
+function applyUVToPoint(uv, x, y, width, height) {
+    const uvPoint = getUVPoint(uv, x, y, width, height)
     
     const p = Jimp.intToRGBA(uv.getPixelColor(uvPoint.x, uvPoint.y))
     let newX = (p.r * width) / 255
@@ -79,8 +67,8 @@ function ApplyUVToPoint(uv, x, y, width, height) {
     newX = Math.round(newX)
     newY = Math.round(newY)
     
-    newX = Clamp(newX, 0, width)
-    newY = Clamp(newY, 0, height)
+    newX = clamp(newX, 0, width)
+    newY = clamp(newY, 0, height)
 
     return { x: newX, y: newY }
 }
@@ -92,8 +80,8 @@ function ApplyUVToPoint(uv, x, y, width, height) {
  * @param {number} width
  * @param {number} height
  */
-function GetOffset(uv, x, y, width, height) {
-    const p = ApplyUVToPoint(uv, x, y, width, height)
+function getOffset(uv, x, y, width, height) {
+    const p = applyUVToPoint(uv, x, y, width, height)
     return { x: x - p.x, y: y - p.y }
 }
 
@@ -102,7 +90,7 @@ function GetOffset(uv, x, y, width, height) {
  * @param {Jimp} image
  * @returns {Promise<Jimp>}
  */
-function ApplyUV(uv, image) {
+async function applyUV(uv, image) {
     const imgW = image.getWidth()
     const imgH = image.getHeight()
 
@@ -110,23 +98,18 @@ function ApplyUV(uv, image) {
     const frameW = imgW
     const frameH = imgW
 
-    return new Promise((resolve, reject) => {
-        Jimp.create(imgW, imgH)
-            .then(img => {
-                for (let frame = 0; frame < frames; frame++) {
-                    for (let y = 0; y < frameH; y++) {
-                        for (let x = 0; x < frameW; x++) {
-                            const offset = GetOffset(uv, x, y, frameW, frameH)
-                            const realX = x
-                            const realY = (frame * imgW) + y
-                            img.setPixelColor(image.getPixelColor(realX - offset.x, realY - offset.y), realX, realY)
-                        }
-                    }
-                }
-                resolve(img)
-            })
-            .catch(reject)
-    })
+    const img = await Jimp.create(imgW, imgH)
+    for (let frame = 0; frame < frames; frame++) {
+        for (let y = 0; y < frameH; y++) {
+            for (let x = 0; x < frameW; x++) {
+                const offset = getOffset(uv, x, y, frameW, frameH)
+                const realX = x
+                const realY = (frame * imgW) + y
+                img.setPixelColor(image.getPixelColor(realX - offset.x, realY - offset.y), realX, realY)
+            }
+        }
+    }
+    return img
 }
 
 /**
@@ -135,40 +118,20 @@ function ApplyUV(uv, image) {
  * @param {string} outPath
  * @returns {Promise<void>}
  */
-function ApplyUVFile(uvPath, imagePath, outPath) {
-    return new Promise((resolve, reject) => {
-        Jimp.read(imagePath)
-            .then(img => {
-                Jimp.read(uvPath)
-                    .then(uv => {
-                        ApplyUV(uv, img)
-                            .then(img2 => {
-                                img2.writeAsync(outPath)
-                                    .then(() => resolve())
-                                    .catch(reject)
-                            })
-                            .catch(reject)
-                    })
-                    .catch(reject)
-            })
-            .catch(reject)
-    })
+async function applyUVFile(uvPath, imagePath, outPath) {
+    const img = await Jimp.read(imagePath)
+    const uv = await Jimp.read(uvPath)
+    const img2 = await applyUV(uv, img)
+    await img2.writeAsync(outPath)
 }
 
 /**
  * @param {Jimp} uv
  * @returns {Promise<Jimp>}
  */
-function InvertUV(uv) {
-    return new Promise((resolve, reject) => {
-        MakeUV(uv.getWidth(), uv.getHeight())
-            .then(plainUV => {
-                ApplyUV(uv, plainUV)
-                    .then(resolve)
-                    .catch(reject)
-            })
-            .catch(reject)
-    })
+async function invertUV(uv) {
+    const plainUV = await makeUV(uv.getWidth(), uv.getHeight())
+    return await applyUV(uv, plainUV)
 }
 
 /**
@@ -176,24 +139,14 @@ function InvertUV(uv) {
  * @param {string} outputUvPath
  * @returns {Promise<void>}
  */
-function InvertUVFile(inputUvPath, outputUvPath) {
-    return new Promise((resolve, reject) => {
-        Jimp.read(inputUvPath)
-            .then(uv => {
-                InvertUV(uv)
-                    .then(newUV => {
-                        newUV.writeAsync(outputUvPath)
-                            .then(() => resolve())
-                            .catch(reject)
-                    })
-                    .catch(reject)
-            })
-            .catch(reject)
-    })
+async function invertUVFile(inputUvPath, outputUvPath) {
+    const uv = await Jimp.read(inputUvPath)
+    const newUV = await invertUV(uv)
+    await newUV.writeAsync(outputUvPath)
 }
 
 module.exports = {
-    MakeUVFile,
-    ApplyUVFile,
-    InvertUVFile,
+    makeUVFile,
+    applyUVFile,
+    invertUVFile,
 }

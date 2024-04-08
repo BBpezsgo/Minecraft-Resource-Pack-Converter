@@ -3,7 +3,7 @@ const fs = require('fs')
 /**
  * @param {string} text
  */
-function CapitalizeFirst(text) {
+function capitalizeFirst(text) {
     return text.charAt(0).toUpperCase() + text.slice(1)
 }
 
@@ -13,7 +13,7 @@ function CapitalizeFirst(text) {
  * @author Angelos Chalaris
  * @link https://www.30secondsofcode.org/js/s/levenshtein-distance
  */
-function LevenshteinDistance(s, t) {
+function levenshteinDistance(s, t) {
     if (!s) return t.length
     if (!t) return s.length
     const arr = []
@@ -36,7 +36,7 @@ function LevenshteinDistance(s, t) {
 /**
  * @param {string} folder
  */
-function GetFilenames(folder, ext = null) {
+function getFilenames(folder, ext = null) {
     if (!fs.existsSync(folder)) return []
     const files = fs.readdirSync(folder)
     const result = []
@@ -51,7 +51,7 @@ function GetFilenames(folder, ext = null) {
 /**
  * @param {string} csv
  */
-function ParseCSV(csv) {
+function parseCSV(csv) {
     const lines = csv.split('\n')
     const result = []
     for (const line of lines) {
@@ -70,7 +70,7 @@ function ParseCSV(csv) {
  * @param {T} defaultNamespace
  * @returns {{ namespace: string | T; relativePath: string; }}
  */
-function GetAsset(assetRaw, defaultNamespace) {
+function getAsset(assetRaw, defaultNamespace) {
     if (!assetRaw) throw new Error(`Field "assetRaw" is null`)
 
     /** @type {T | string} */
@@ -91,7 +91,7 @@ function GetAsset(assetRaw, defaultNamespace) {
  * @param {number} min
  * @param {number} max
  */
-function Clamp(v, min, max) {
+function clamp(v, min, max) {
     if (v < min) {
         return min
     }
@@ -106,7 +106,7 @@ function Clamp(v, min, max) {
  * @param {number} min
  * @param {number} max
  */
-function Repeat(v, min, max) {
+function repeat(v, min, max) {
     while (v < min) {
         v = v + min
     }
@@ -121,14 +121,14 @@ function Repeat(v, min, max) {
  * @param {T} obj
  * @returns {T | undefined}
  */
-function PrugeObject(obj) {
+function prugeObject(obj) {
     if (!obj) { return obj }
 
     if (Array.isArray(obj)) {
 
         for (let i = obj.length; i >= 0; i--) {
             let element = obj[i]
-            element = PrugeObject(element)
+            element = prugeObject(element)
             if (!element) {
                 obj.splice(i, 1)
             }
@@ -146,7 +146,7 @@ function PrugeObject(obj) {
         for (const key of keys) {
             /** @type {any} */
             const value = obj[key]
-            obj[key] = PrugeObject(value)
+            obj[key] = prugeObject(value)
             if (!obj[key]) { delete obj[key] }
         }
         
@@ -161,12 +161,12 @@ function PrugeObject(obj) {
 }
 
 module.exports = {
-    CapitalizeFirst,
-    LevenshteinDistance,
-    GetFilenames,
-    ParseCSV,
-    GetAsset,
-    Clamp,
-    Repeat,
-    PrugeObject,
+    capitalizeFirst,
+    levenshteinDistance,
+    getFilenames,
+    parseCSV,
+    getAsset,
+    clamp,
+    repeat,
+    prugeObject,
 }

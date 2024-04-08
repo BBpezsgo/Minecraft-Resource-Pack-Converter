@@ -1,73 +1,72 @@
 const fs = require('fs')
-const Path = require('path')
-const Types = require('./pack')
+const path = require('path')
 
-const Utils = {
-    ReadJson: /** @type {(file: string) => (null | any)} */ (file) => {
+const utils = {
+    readJson: /** @type {(file: string) => (null | any)} */ (file) => {
         if (!fs.existsSync(file)) return null
         return JSON.parse(fs.readFileSync(file, 'utf8'))
     },
-    ReadJsons: /** @type {(folder: string) => (null | { [id: string]: any })} */ (folder) => {
+    readJsons: /** @type {(folder: string) => (null | { [id: string]: any })} */ (folder) => {
         if (!fs.existsSync(folder)) return null
         const files = fs.readdirSync(folder)
         const result = { }
         for (const file of files) {
             if (typeof file !== 'string') continue
 
-            const filePath = Path.join(folder, file)
-            if (Path.extname(filePath) !== '.json') continue
+            const filePath = path.join(folder, file)
+            if (path.extname(filePath) !== '.json') continue
 
             const data = JSON.parse(fs.readFileSync(filePath, 'utf8'))
 
-            result[Path.parse(file).name] = data
+            result[path.parse(file).name] = data
         }
         return result
     },
-    ReadTexts: /** @type {(folder: string) => (null | { [id: string]: string })} */ (folder) => {
+    readTexts: /** @type {(folder: string) => (null | { [id: string]: string })} */ (folder) => {
         if (!fs.existsSync(folder)) return null
         const files = fs.readdirSync(folder)
         const result = { }
         for (const file of files) {
             if (typeof file !== 'string') continue
 
-            const filePath = Path.join(folder, file)
-            if (Path.extname(filePath) !== '.txt') continue
+            const filePath = path.join(folder, file)
+            if (path.extname(filePath) !== '.txt') continue
 
             const data = fs.readFileSync(filePath, 'utf8')
 
-            result[Path.parse(file).name] = data
+            result[path.parse(file).name] = data
         }
         // @ts-ignore
         return result
     },
-    ReadFiles: /** @type {(folder: string, extension: string = null) => (null | { [file: string]: string })} */ (folder, extension = undefined) => {
+    readFiles: /** @type {(folder: string, extension: string = null) => (null | { [file: string]: string })} */ (folder, extension = undefined) => {
         if (!fs.existsSync(folder)) return null
         const files = fs.readdirSync(folder)
         const result = { }
         for (const file of files) {
             if (typeof file !== 'string') continue
-            if (extension && Path.extname(file) !== extension) continue
-            result[Path.parse(file).name] = Path.join(folder, file)
+            if (extension && path.extname(file) !== extension) continue
+            result[path.parse(file).name] = path.join(folder, file)
         }
         // @ts-ignore
         return result
     },
-    ReadFilesRecursive: /** @type {(folder: string, extension: string = null) => (null | import('./pack').Directory)} */ (folder, extension = undefined) => {
+    readFilesRecursive: /** @type {(folder: string, extension: string = null) => (null | import('./pack-types').Directory)} */ (folder, extension = undefined) => {
         if (!fs.existsSync(folder)) return null
         const files = fs.readdirSync(folder)
-        /** @type {import('./pack').Directory} */
+        /** @type {import('./pack-types').Directory} */
         const result = { }
         for (const file of files) {
             if (typeof file !== 'string') continue
-            const info = fs.statSync(Path.join(folder, file))
+            const info = fs.statSync(path.join(folder, file))
             if (info.isDirectory()) {
-                const subfolder = Utils.ReadFilesRecursive(Path.join(folder, file), extension)
+                const subfolder = utils.ReadFilesRecursive(path.join(folder, file), extension)
                 if (subfolder) {
-                    result[Path.parse(file).name] = subfolder
+                    result[path.parse(file).name] = subfolder
                 }
             } else if (info.isFile()) {
-                if (extension && Path.extname(file) !== extension) continue
-                result[Path.parse(file).name] = Path.join(folder, file)
+                if (extension && path.extname(file) !== extension) continue
+                result[path.parse(file).name] = path.join(folder, file)
             }
         }
         return result
@@ -75,16 +74,16 @@ const Utils = {
 }
 
 /**
- * @param {string} path
+ * @param {string} packPath
  * @returns {ResourcePack | null}
  */
-function ReadResourcePack(path) {
-    const mcmetaPath = Path.join(path, 'pack.mcmeta')
+function readResourcePack(packPath) {
+    const mcmetaPath = path.join(packPath, 'pack.mcmeta')
     // if (!fs.existsSync(mcmetaPath)) return null
 
     const mcmetaContents = fs.existsSync(mcmetaPath) ? fs.readFileSync(mcmetaPath, 'utf8') : null
 
-    /** @type {Types.McMeta | null} */
+    /** @type {import('./pack-types').McMeta | null} */
     const mcmeta = mcmetaContents ? (function () {
         try {
             return JSON.parse(mcmetaContents)
@@ -94,14 +93,14 @@ function ReadResourcePack(path) {
         }
     })() : null
 
-    const newResourcePack = new ResourcePack(path, mcmeta)
+    const newResourcePack = new ResourcePack(packPath, mcmeta)
     
-    const iconPath = Path.join(path, 'pack.png')
+    const iconPath = path.join(packPath, 'pack.png')
     const iconExists = fs.existsSync(iconPath)
 
     newResourcePack.Icon = iconExists ? iconPath : null
 
-    const assetsPath = Path.join(path, 'assets')
+    const assetsPath = path.join(packPath, 'assets')
     
     if (!fs.existsSync(assetsPath)) {
         newResourcePack.Assets = { }
@@ -116,7 +115,7 @@ function ReadResourcePack(path) {
     }
 
     for (const namespace of namespaceNames) {
-        const namespacePath = Path.join(assetsPath, namespace)
+        const namespacePath = path.join(assetsPath, namespace)
 
         const info = fs.statSync(namespacePath)
 
@@ -124,7 +123,7 @@ function ReadResourcePack(path) {
             continue
         }
 
-        namespaces[namespace] = ReadNamespace(namespacePath)
+        namespaces[namespace] = readNamespace(namespacePath)
     }
 
     newResourcePack.Assets = namespaces
@@ -132,21 +131,21 @@ function ReadResourcePack(path) {
 }
 
 /**
- * @param {string} path
+ * @param {string} namespacePath
  */
-function ReadNamespace(path) {
-    const Asset = new Namespace(path)
+function readNamespace(namespacePath) {
+    const Asset = new Namespace(namespacePath)
 
-    Asset.gpu_warnlist = Utils.ReadJson(Path.join(path, 'gpu_warnlist.json'))
+    Asset.gpu_warnlist = utils.readJson(path.join(namespacePath, 'gpu_warnlist.json'))
 
 
-    Asset.sounds = Utils.ReadJson(Path.join(path, 'sounds.json'))
+    Asset.sounds = utils.readJson(path.join(namespacePath, 'sounds.json'))
 
 
     Asset.blockstates = null // Utils.ReadJsons(Path.join(path, 'blockstates'))
 
     
-    Asset.font = Utils.ReadJsons(Path.join(path, 'font'))
+    Asset.font = utils.readJsons(path.join(namespacePath, 'font'))
 
 
     Asset.lang = null // Utils.ReadJsons(Path.join(path, 'lang'))
@@ -164,10 +163,10 @@ function ReadNamespace(path) {
     */
 
 
-    Asset.particles = Utils.ReadJsons(Path.join(path, 'particles'))
+    Asset.particles = utils.readJsons(path.join(namespacePath, 'particles'))
 
 
-    Asset.regional_compliancies = Utils.ReadJson(Path.join(path, 'regional_compliancies.json'))
+    Asset.regional_compliancies = utils.readJson(path.join(namespacePath, 'regional_compliancies.json'))
 
 
     Asset.texts = null // Utils.ReadTexts(Path.join(path, 'texts'))
@@ -199,8 +198,31 @@ function ReadNamespace(path) {
 
 class ResourcePack {
     /**
+     * @readonly
+     * @type {string}
+     */
+    Path
+
+    /**
+     * @readonly
+     * @type {import('./pack-types').McMeta |null}
+     */
+    Mcmeta
+
+    /**
+     * **This is a path!**
+     * @type {string | null}
+     */
+    Icon
+
+    /**
+     * @type {{ [namespace: string]: Namespace }}
+     */
+    Assets
+    
+    /**
      * @param {string} path
-     * @param {Types.McMeta | null} mcmeta
+     * @param {import('./pack-types').McMeta | null} mcmeta
      */
     constructor(path, mcmeta) {
         this.Path = path
@@ -215,7 +237,7 @@ class ResourcePack {
      * @param {string} relativePath
      * @param {string} defaultNamespace
      */
-    FindTexture(relativePath, defaultNamespace) {
+    findTexture(relativePath, defaultNamespace) {
         let namespace = defaultNamespace
         if (relativePath.includes(':')) {
             namespace = relativePath.split(':')[0]
@@ -224,11 +246,66 @@ class ResourcePack {
         if (!this.Assets[namespace]) {
             return null
         }
-        return this.Assets[namespace].FindTexture(relativePath)
+        return this.Assets[namespace].findTexture(relativePath)
     }
 }
 
 class Namespace {
+    /**
+     * @readonly
+     * @type {string}
+     */
+    Path
+
+    /**
+     * @type {any | null}
+     */
+    gpu_warnlist
+
+    /**
+     * @type {import('./pack-types').Sounds | null}
+     */
+    sounds
+
+    /**
+     * @type {{ [block: string]: any } | null}
+     */
+    blockstates
+
+    /**
+     * @type {{ [font: string]: import('./pack-types').Fonts } | null}
+     */
+    font
+
+    /**
+     * @type {{ [language: string]: { [id: string]: string } } | null}
+     */
+    lang
+    
+    /*models: {
+        block: {
+            [block: string]: any
+        } | null
+        item: {
+            [item: string]: any
+        } | null
+    } | null*/
+
+    /**
+     *  @type {{ [id: string]: any } | null}
+     */
+    particles
+
+    /**
+     * @type {import('./pack-types').RegionalCompliancies | null}
+     */
+    regional_compliancies
+
+    /**
+     * @type {{ [text: string]: string } | null}
+     */
+    texts
+
     /**
      * @param {string} path
      */
@@ -248,20 +325,20 @@ class Namespace {
     /**
      * @param {string} relativePath
      */
-    FindTexture(relativePath) {
+    findTexture(relativePath) {
         if (relativePath.includes(':')) {
             relativePath = relativePath.substring(relativePath.split(':')[0].length + 1)
         }
-        const path = Path.join(this.Path, 'textures', relativePath)
-        if (!fs.existsSync(path)) {
+        const texturePath = path.join(this.Path, 'textures', relativePath)
+        if (!fs.existsSync(texturePath)) {
             return null
         }
 
-        if (!fs.statSync(path).isFile()) {
+        if (!fs.statSync(texturePath).isFile()) {
             return null
         }
 
-        const animationPath = path + '.mcmeta'
+        const animationPath = texturePath + '.mcmeta'
 
         let animation = null
 
@@ -275,7 +352,7 @@ class Namespace {
         }
 
         return {
-            path: path,
+            path: texturePath,
             animation: animation,
         }
     }
@@ -283,28 +360,31 @@ class Namespace {
     /**
      * @param {string} relativePath
      */
-    GetTextures(relativePath) {
-        const path = Path.join(this.Path, 'textures', relativePath)
-        if (!fs.existsSync(path)) {
+    getTextures(relativePath) {
+        const texturePath = path.join(this.Path, 'textures', relativePath)
+        if (!fs.existsSync(texturePath)) {
             return null
         }
 
-        if (!fs.statSync(path).isDirectory()) {
+        if (!fs.statSync(texturePath).isDirectory()) {
             return null
         }
 
-        const content = fs.readdirSync(path)
+        const content = fs.readdirSync(texturePath)
 
+        /**
+         * @type {import('./basic').Map<string, string>}
+         */
         const result = {
 
         }
 
         for (const element of content) {
-            const elementPath = Path.join(path, element)
+            const elementPath = path.join(texturePath, element)
             if (!fs.statSync(elementPath).isFile()) {
                 continue
             }
-            if (Path.extname(elementPath) !== '.png') {
+            if (path.extname(elementPath) !== '.png') {
                 continue
             }
             result[element.replace('.png', '')] = elementPath
@@ -316,25 +396,28 @@ class Namespace {
     /**
      * @param {string} relativePath
      */
-    GetTexturesRecursive(relativePath) {
-        const path = Path.join(this.Path, 'textures', relativePath)
-        if (!fs.existsSync(path)) {
+    getTexturesRecursive(relativePath) {
+        const texturePath = path.join(this.Path, 'textures', relativePath)
+        if (!fs.existsSync(texturePath)) {
             return null
         }
 
-        if (!fs.statSync(path).isDirectory()) {
+        if (!fs.statSync(texturePath).isDirectory()) {
             return null
         }
 
+        /**
+         * @type {import('./basic').Map<string, string>}
+         */
         const result = {
 
         }
 
         const Do = function(/** @type {string[]} */ ...pathElements) {
-            const content = fs.readdirSync(Path.join(path, ...pathElements))
+            const content = fs.readdirSync(path.join(texturePath, ...pathElements))
 
             for (const element of content) {
-                const elementPath = Path.join(path, ...pathElements, element)
+                const elementPath = path.join(texturePath, ...pathElements, element)
                 if (fs.statSync(elementPath).isDirectory()) {
                     Do(...pathElements, element)
                     continue
@@ -342,7 +425,7 @@ class Namespace {
                 if (!fs.statSync(elementPath).isFile()) {
                     continue
                 }
-                if (Path.extname(elementPath) !== '.png') {
+                if (path.extname(elementPath) !== '.png') {
                     continue
                 }
                 let id = ''
@@ -362,44 +445,47 @@ class Namespace {
     /**
      * @param {string} relativePath
      */
-    FindModel(relativePath) {
-        const path = Path.join(this.Path, 'models', relativePath)
-        if (!fs.existsSync(path)) {
+    findModel(relativePath) {
+        const modelPath = path.join(this.Path, 'models', relativePath)
+        if (!fs.existsSync(modelPath)) {
             return null
         }
 
-        if (!fs.statSync(path).isFile()) {
+        if (!fs.statSync(modelPath).isFile()) {
             return null
         }
 
-        return path
+        return modelPath
     }
 
     /**
      * @param {string} relativePath
      */
-    GetModels(relativePath) {
-        const path = Path.join(this.Path, 'models', relativePath)
-        if (!fs.existsSync(path)) {
+    getModels(relativePath) {
+        const modelPath = path.join(this.Path, 'models', relativePath)
+        if (!fs.existsSync(modelPath)) {
             return null
         }
 
-        if (!fs.statSync(path).isDirectory()) {
+        if (!fs.statSync(modelPath).isDirectory()) {
             return null
         }
 
-        const content = fs.readdirSync(path)
+        const content = fs.readdirSync(modelPath)
 
+        /**
+         * @type {import('./basic').Map<string, string>}
+         */
         const result = {
 
         }
 
         for (const element of content) {
-            const elementPath = Path.join(path, element)
+            const elementPath = path.join(modelPath, element)
             if (!fs.statSync(elementPath).isFile()) {
                 continue
             }
-            if (Path.extname(elementPath) !== '.json') {
+            if (path.extname(elementPath) !== '.json') {
                 continue
             }
             result[element.replace('.json', '')] = elementPath
@@ -409,7 +495,10 @@ class Namespace {
     }
 }
 
-const VersionToPackFormat = {
+/**
+ * @type {{ [version: string]: PackFormat }}
+ */
+const versionToPackFormat = {
     '1.6': 1,
     '1.7': 1,
     '1.8': 1,
@@ -427,7 +516,15 @@ const VersionToPackFormat = {
     '1.20': 15,
 }
 
-const PackFormatToVersion = {
+/**
+ * @exports
+ * @typedef {1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 11 | 12 | 13 | 14 | 15 | 16} PackFormat
+ */
+
+/**
+ * @type {{ [packFormat: number]: import('./changes').Version }}
+ */
+const packFormatToVersion = {
     1: '1.8',
     2: '1.10',
     3: '1.12',
@@ -441,7 +538,7 @@ const PackFormatToVersion = {
 }
 
 /** @type {import('./changes').Version[]} */
-const Versions = [
+const versions = [
     '1.6',
     '1.7',
     '1.8',
@@ -462,17 +559,17 @@ const Versions = [
 /**
  * @param {import('./changes').Version} version
  */
-function GetDefaultPack(version) {
-    const format = VersionToPackFormat[version]
+function getDefaultPack(version) {
+    const format = versionToPackFormat[version]
     if (!format) throw new Error(`Failed to get pack format from version ${version}`)
 
     const Changes = require('./changes')
 
-    let base = Changes.Base()
-    const changes = Changes.CollectPackChanges('1.6', version)
+    let base = Changes.base()
+    const changes = Changes.collectPackChanges('1.6', version)
 
     for (let i = base.models.block.length; i >= 0; i--) {
-        const evaulated = Changes.Evaluate(changes.models.block, base.models.block[i])
+        const evaulated = Changes.evaluate(changes.models.block, base.models.block[i])
         if (evaulated === undefined) continue
         if (evaulated === null) {
             base.models.block.splice(i, 1)
@@ -482,7 +579,7 @@ function GetDefaultPack(version) {
     }
     
     for (let i = base.models.item.length; i >= 0; i--) {
-        const evaulated = Changes.Evaluate(changes.models.item, base.models.item[i])
+        const evaulated = Changes.evaluate(changes.models.item, base.models.item[i])
         if (evaulated === undefined) continue
         if (evaulated === null) {
             base.models.item.splice(i, 1)
@@ -492,7 +589,7 @@ function GetDefaultPack(version) {
     }
     
     for (let i = base.textures.block.length; i >= 0; i--) {
-        const evaulated = Changes.Evaluate(changes.textures.block, base.textures.block[i])
+        const evaulated = Changes.evaluate(changes.textures.block, base.textures.block[i])
         if (evaulated === undefined) continue
         if (evaulated === null) {
             base.textures.block.splice(i, 1)
@@ -502,7 +599,7 @@ function GetDefaultPack(version) {
     }
     
     for (let i = base.textures.item.length; i >= 0; i--) {
-        const evaulated = Changes.Evaluate(changes.textures.item, base.textures.item[i])
+        const evaulated = Changes.evaluate(changes.textures.item, base.textures.item[i])
         if (evaulated === undefined) continue
         if (evaulated === null) {
             base.textures.item.splice(i, 1)
@@ -515,11 +612,11 @@ function GetDefaultPack(version) {
 }
 
 module.exports = {
-    ReadResourcePack,
     ResourcePack,
     Namespace,
-    VersionToPackFormat,
-    PackFormatToVersion,
-    Versions,
-    GetDefaultPack,
+    versionToPackFormat,
+    packFormatToVersion,
+    versions,
+    readResourcePack,
+    getDefaultPack,
 }

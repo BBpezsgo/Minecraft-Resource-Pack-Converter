@@ -1,8 +1,24 @@
 /**
- * @param {string} value
- * @param {{ [id: string]: string }} obj
+ * @exports
+ * @template {string} TKey
+ * @template TValue
+ * @typedef {{ [key in TKey]: TValue }} Map
  */
-function GetKey(value, obj) {
+
+/**
+ * @exports
+ * @template TKey
+ * @template TValue
+ * @typedef {{ key: TKey; value: TValue; }} Pair
+ */
+
+/**
+ * @template TValue
+ * @param {TValue} value
+ * @param {{ [id: string]: TValue }} obj
+ * @returns {string | null}
+ */
+function getKey(value, obj) {
     const keys = Object.keys(obj)
     for (const key of keys) {
         if (obj[key] === value) {
@@ -14,5 +30,5 @@ function GetKey(value, obj) {
 }
 
 module.exports = {
-    GetKey,
+    getKey,
 }

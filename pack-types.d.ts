@@ -1,7 +1,5 @@
 import { Map, PackStructure, Version } from './changes'
 
-export function ReadResourcePack(path: string): ResourcePack
-
 export type int = number
 export type float = number
 
@@ -35,106 +33,6 @@ export type McMeta = {
             path: string
         }[]
     }
-}
-
-export class ResourcePack {
-    readonly Path: string
-    readonly Mcmeta: McMeta |null
-    /** **This is a path!** */
-    Icon: string | null
-    Assets: {
-        [namespace: string]: Namespace
-    }
-    
-    FindTexture(relativePath: string, defaultNamespace: string): Texture | null
-}
-
-export class Namespace {
-    readonly Path: string
-
-    gpu_warnlist: any | null
-
-    sounds: Sounds | null
-
-    blockstates: {
-        [block: string]: any
-    } | null
-
-    font: {
-        [font: string]: Fonts
-    } | null
-
-    lang: {
-        [language: string]: {
-            [id: string]: string
-        }
-    } | null
-    
-    /*models: {
-        block: {
-            [block: string]: any
-        } | null
-        item: {
-            [item: string]: any
-        } | null
-    } | null*/
-
-    particles: {
-        [id: string]: any
-    } | null
-
-    regional_compliancies: RegionalCompliancies | null
-
-    texts: {
-        [text: string]: string
-    } | null
-
-    constructor(path: string)
-
-    /*textures: Directory{
-        block: {
-            [texture: string]: string
-        } | null
-        colormap: {
-            [texture: string]: string
-        } | null
-        effect: {
-            [texture: string]: string
-        } | null
-        environment: {
-            [texture: string]: string
-        } | null
-        font: {
-            [texture: string]: string
-        } | null
-        item: {
-            [texture: string]: string
-        } | null
-        map: {
-            [texture: string]: string
-        } | null
-        misc: {
-            [texture: string]: string
-        } | null
-        mob_effect: {
-            [texture: string]: string
-        } | null
-        painting: {
-            [texture: string]: string
-        } | null
-        particle: {
-            [texture: string]: string
-        } | null
-    } | null*/
-
-    FindTexture(relativePath: string): Texture | null
-
-    GetTextures(relativePath: string): Map<string, string> | null
-    GetTexturesRecursive(relativePath: string): Map<string, string> | null
-    
-    FindModel(relativePath: string): string | null
-
-    GetModels(relativePath: string): Map<string, string> | null
 }
 
 export type Sounds = {
@@ -274,8 +172,6 @@ export type GenericModel = {
     }
 }
 
-export type PackFormat = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 11 | 12 | 13 | 14 | 15 | 16
-
 export type VersionToPackFormatConverter = {
     [version: string]: PackFormat | undefined
 }
@@ -283,11 +179,3 @@ export type VersionToPackFormatConverter = {
 export type PackFormatToVersionConverter = {
     [version: number]: Version | undefined
 }
-
-export const VersionToPackFormat: VersionToPackFormatConverter
-
-export const PackFormatToVersion: PackFormatToVersionConverter
-
-export const Versions: Version[]
-
-export function GetDefaultPack(version: Version): PackStructure<string[]>

@@ -55,6 +55,9 @@ module.exports = async function(/** @type {string} */ outputZip, /** @type {Arra
         lastProgressTime = now
         console.log(Progress.getPercentString(progress.entries.processed, progress.entries.total))
     })
+    archive.on('close', () => {
+        console.log(`100.00 %`)
+    })
 
     await archive.finalize()
 }

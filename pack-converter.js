@@ -1,9 +1,9 @@
 const fs = require('fs')
 const Path = require('path')
-const Pack = require('./pack')
+const pack = require('./pack')
 const Changes = require('./changes')
-const { VersionToPackFormat } = require('./pack')
-const Utils = require('./utils')
+const { versionToPackFormat } = require('./pack')
+const utils = require('./utils')
 const UV = require('./uv')
 const Jimp = require('jimp')
 
@@ -13,7 +13,7 @@ const Jimp = require('jimp')
  * @param {string} inputFile **Without extension!**
  * @param {string} outputFile **Without extension!**
  */
-function CopyTexture(inputFolder, outputFolder, inputFile, outputFile) {
+function copyTexture(inputFolder, outputFolder, inputFile, outputFile) {
     if (!fs.existsSync(inputFolder)) throw new Error('Input folder does not exists')
 
     const png = '.png'
@@ -50,7 +50,7 @@ function CopyTexture(inputFolder, outputFolder, inputFile, outputFile) {
  * @param {string} fileName
  * @param {string} uv
  */
-function ApplyUV(folderPath, fileName, uv) {
+function applyUV(folderPath, fileName, uv) {
     const png = '.png'
     const ems = '_e'
 
@@ -71,7 +71,7 @@ function ApplyUV(folderPath, fileName, uv) {
     }
 
     for (const convertable of convertables) {
-        UV.ApplyUVFile(uvPath, convertable, convertable)
+        UV.applyUVFile(uvPath, convertable, convertable)
             .catch(console.error)
     }
 }
@@ -93,7 +93,7 @@ function HEX2RGB(hex) {
  * @param {string} fileName
  * @param {`#${string}`} tint
  */
-function AddTint(folderPath, fileName, tint) {
+function addTint(folderPath, fileName, tint) {
     const png = '.png'
     const ems = '_e'
 
@@ -129,7 +129,7 @@ function AddTint(folderPath, fileName, tint) {
  * @param {string} fileName
  * @param {`#${string}`} tint
  */
-function RemoveTint(folderPath, fileName, tint) {
+function removeTint(folderPath, fileName, tint) {
     
 }
 
@@ -182,7 +182,7 @@ function ReadDirRecursive(directory, extension = null) {
  * @param {Changes.SimpleChanges<import('./basic').Map<string, `#${string}`>>} tints
  * @param {boolean} copyUnknowns
  */
-function ConvertTextures(inputFolder, outputFolder, changes, base, uvs, tints, copyUnknowns) {
+function convertTextures(inputFolder, outputFolder, changes, base, uvs, tints, copyUnknowns) {
     if (!fs.existsSync(inputFolder)) {
         return
     }
@@ -195,7 +195,7 @@ function ConvertTextures(inputFolder, outputFolder, changes, base, uvs, tints, c
 
     for (const currentTexture of files) {
 
-        let targetTexture = Changes.Evaluate(changes, currentTexture)
+        let targetTexture = Changes.evaluate(changes, currentTexture)
 
         if (targetTexture === null) { continue }
 
@@ -207,11 +207,11 @@ function ConvertTextures(inputFolder, outputFolder, changes, base, uvs, tints, c
             }
         }
 
-        CopyTexture(inputFolder, outputFolder, currentTexture, targetTexture)
+        copyTexture(inputFolder, outputFolder, currentTexture, targetTexture)
 
         const uv = uvs[targetTexture]
         if (uv) {
-            ApplyUV(outputFolder, targetTexture, uv)
+            applyUV(outputFolder, targetTexture, uv)
         }
 
         /** @type {`#${string}` | undefined} */
@@ -222,9 +222,9 @@ function ConvertTextures(inputFolder, outputFolder, changes, base, uvs, tints, c
         if (tintAdded && tintRemoved) {
 
         } else if (tintAdded) {
-            AddTint(outputFolder, targetTexture, tintAdded)
+            addTint(outputFolder, targetTexture, tintAdded)
         } else if (tintRemoved) {
-            RemoveTint(outputFolder, targetTexture, tintRemoved)
+            removeTint(outputFolder, targetTexture, tintRemoved)
         }
     }
 }
@@ -233,7 +233,7 @@ function ConvertTextures(inputFolder, outputFolder, changes, base, uvs, tints, c
  * @param {string} path
  * @param {number} format
  */
-function ConvertTexturePath(path, format) {
+function convertTexturePath(path, format) {
     if (format < 4) {
         return path.replace('block/', 'blocks/').replace('item/', 'items/')
     } else {
@@ -254,7 +254,7 @@ function ConvertTexturePath(path, format) {
  * 
  * @param {import('./pack').PackFormat} outputFormat
  */
-function ConvertModel(relativePath, inputAssetsFolder, outputAssetsFolder, namespace, changes, base, outputFormat, force = false) {
+function convertModel(relativePath, inputAssetsFolder, outputAssetsFolder, namespace, changes, base, outputFormat, force = false) {
     const kind = relativePath.split('/')[0]
 
     if (kind !== 'item' && kind !== 'block') {
@@ -264,7 +264,7 @@ function ConvertModel(relativePath, inputAssetsFolder, outputAssetsFolder, names
 
     const filename = Path.basename(relativePath)
 
-    let outputFilename = Changes.Evaluate(changes.models[kind], filename)
+    let outputFilename = Changes.evaluate(changes.models[kind], filename)
     if (outputFilename === undefined) {
         if (!base.models[kind].includes(filename)) {
             console.log(`[PackConverter]: Unknown model "${relativePath}"`)
@@ -288,7 +288,7 @@ function ConvertModel(relativePath, inputAssetsFolder, outputAssetsFolder, names
     }
 
     if (model.parent) {
-        const parent = Utils.GetAsset(model.parent, namespace)
+        const parent = utils.getAsset(model.parent, namespace)
 
         const parentName = Path.basename(parent.relativePath)
         const parentKind = Path.dirname(parent.relativePath).split('/')[0]
@@ -298,7 +298,7 @@ function ConvertModel(relativePath, inputAssetsFolder, outputAssetsFolder, names
         } else if (parentKind !== 'item' && parentKind !== 'block') {
             console.warn(`[PackConverter]: Unknown model directory name "${parentKind}" in model "${relativePath}"`)
         } else {
-            let convertedParent = Changes.Evaluate(changes.models[parentKind], parentName)
+            let convertedParent = Changes.evaluate(changes.models[parentKind], parentName)
     
             if (convertedParent === undefined && base.models[kind].includes(parentName)) {
                 convertedParent = parentName
@@ -307,7 +307,7 @@ function ConvertModel(relativePath, inputAssetsFolder, outputAssetsFolder, names
             if (convertedParent === null) {
                 const parentPath = Path.join(inputAssetsFolder, parent.namespace, 'models', parent.relativePath + '.json')
                 if (fs.existsSync(parentPath)) {
-                    ConvertModel(
+                    convertModel(
                         parent.relativePath,
                         inputAssetsFolder,
                         outputAssetsFolder,
@@ -330,7 +330,7 @@ function ConvertModel(relativePath, inputAssetsFolder, outputAssetsFolder, names
     }
 
     if (model.textures) for (const texture in model.textures) {
-        const asset = Utils.GetAsset(model.textures[texture], 'minecraft')
+        const asset = utils.getAsset(model.textures[texture], 'minecraft')
 
         if (asset.relativePath.startsWith('#')) continue
 
@@ -356,9 +356,9 @@ function ConvertModel(relativePath, inputAssetsFolder, outputAssetsFolder, names
         */
 
         const relativePathOriginal = asset.relativePath
-        let relativePathConverted = ConvertTexturePath(relativePathOriginal, outputFormat)
+        let relativePathConverted = convertTexturePath(relativePathOriginal, outputFormat)
 
-        let convertedTexture = Changes.Evaluate(changes.textures[textureKind], Path.basename(relativePathOriginal))
+        let convertedTexture = Changes.evaluate(changes.textures[textureKind], Path.basename(relativePathOriginal))
 
         if (convertedTexture === null) {
             console.log(`[PackConverter]: Texture "${relativePathOriginal}" has been deleted but the model "${relativePath}" needs it`)
@@ -372,7 +372,7 @@ function ConvertModel(relativePath, inputAssetsFolder, outputAssetsFolder, names
         }
 
         if (convertedTexture) {
-            relativePathConverted = Path.join(Path.dirname(ConvertTexturePath(relativePathOriginal, outputFormat)), convertedTexture).replace(/\\/g, '/')
+            relativePathConverted = Path.join(Path.dirname(convertTexturePath(relativePathOriginal, outputFormat)), convertedTexture).replace(/\\/g, '/')
             model.textures[texture] = relativePathConverted
         }
 
@@ -389,7 +389,7 @@ function ConvertModel(relativePath, inputAssetsFolder, outputAssetsFolder, names
                 }
             } else {
                 console.log(`[PackConverter]: Converted texture "${relativePathConverted}" for model "${relativePath}" not found, copy non-converted texture`)
-                CopyTexture(
+                copyTexture(
                         Path.join(inputAssetsFolder, namespace, 'textures', Path.dirname(relativePathOriginal)),
                         Path.join(outputAssetsFolder, namespace, 'textures', Path.dirname(relativePathConverted)),
                         Path.basename(relativePathOriginal),
@@ -415,7 +415,7 @@ function ConvertModel(relativePath, inputAssetsFolder, outputAssetsFolder, names
  * 
  * @param {import('./pack').PackFormat} outputFormat
  */
-function ConvertModels(kind, inputAssetsFolder, outputAssetsFolder, namespace, changes, base, outputFormat) {
+function convertModels(kind, inputAssetsFolder, outputAssetsFolder, namespace, changes, base, outputFormat) {
     if (!fs.existsSync(inputAssetsFolder)) {
         return
     }
@@ -431,7 +431,7 @@ function ConvertModels(kind, inputAssetsFolder, outputAssetsFolder, namespace, c
         if (ext !== 'json') { continue }
         const filename = file.substring(0, file.length - 5)
 
-        ConvertModel(
+        convertModel(
             kind + '/' + filename,
             inputAssetsFolder,
             outputAssetsFolder,
@@ -453,13 +453,13 @@ function ConvertModels(kind, inputAssetsFolder, outputAssetsFolder, namespace, c
  * @param {import('./changes').PackChanges} changes
  * @param {import('./changes').PackStructure<string[]>} base
  */
-function ConvertModelName(inputAssetsFolder, outputAssetsFolder, resourcePath, changes, base, namespace = 'minecraft') {
-    let model = Utils.GetAsset(resourcePath, namespace)
+function convertModelName(inputAssetsFolder, outputAssetsFolder, resourcePath, changes, base, namespace = 'minecraft') {
+    let model = utils.getAsset(resourcePath, namespace)
     const modelName = Path.basename(model.relativePath)
     const type = model.relativePath.split('/')[0]
     
     if (model.relativePath === type + '/' + modelName) {
-        let convertedModelName = Changes.Evaluate(changes.models['block'], modelName)
+        let convertedModelName = Changes.evaluate(changes.models['block'], modelName)
 
         if (convertedModelName === undefined && base.models['block'].includes(modelName)) {
             convertedModelName = modelName
@@ -488,7 +488,7 @@ function ConvertModelName(inputAssetsFolder, outputAssetsFolder, resourcePath, c
  * 
  * @param {import('./pack').PackFormat} outputFormat
  */
-function ConvertBlockstates(inputAssetsFolder, outputAssetsFolder, namespace, changes, base, outputFormat) {
+function convertBlockstates(inputAssetsFolder, outputAssetsFolder, namespace, changes, base, outputFormat) {
     const files = fs.readdirSync(Path.join(inputAssetsFolder, 'minecraft', 'blockstates'))
     for (const file of files) {
         if (!file.endsWith('.json')) { continue }
@@ -512,9 +512,9 @@ function ConvertBlockstates(inputAssetsFolder, outputAssetsFolder, namespace, ch
                             const apply = multipart.apply[j]
                             if (!apply.model) debugger
 
-                            const _p = ParsePath(apply.model)
+                            const _p = parsePath(apply.model)
 
-                            ConvertModel(
+                            convertModel(
                                 _p.path,
                                 inputAssetsFolder,
                                 outputAssetsFolder,
@@ -523,18 +523,18 @@ function ConvertBlockstates(inputAssetsFolder, outputAssetsFolder, namespace, ch
                                 base,
                                 outputFormat)
 
-                            let convertedModel = ConvertModelName(inputAssetsFolder, outputAssetsFolder, apply.model, changes, base)
+                            let convertedModel = convertModelName(inputAssetsFolder, outputAssetsFolder, apply.model, changes, base)
                         
-                            if (convertedModel && NormalizePath(convertedModel) !== NormalizePath(apply.model)) {
+                            if (convertedModel && normalizePath(convertedModel) !== normalizePath(apply.model)) {
                                 debugger
                             }
                         }
                     } else {
                         if (!multipart.apply.model) debugger
                         
-                        const _p = ParsePath(multipart.apply.model)
+                        const _p = parsePath(multipart.apply.model)
 
-                        ConvertModel(
+                        convertModel(
                             _p.path,
                             inputAssetsFolder,
                             outputAssetsFolder,
@@ -543,9 +543,9 @@ function ConvertBlockstates(inputAssetsFolder, outputAssetsFolder, namespace, ch
                             base,
                             outputFormat)
 
-                        let convertedModel = ConvertModelName(inputAssetsFolder, outputAssetsFolder, multipart.apply.model, changes, base)
+                        let convertedModel = convertModelName(inputAssetsFolder, outputAssetsFolder, multipart.apply.model, changes, base)
                                                 
-                        if (convertedModel && NormalizePath(convertedModel) !== NormalizePath(multipart.apply.model)) {
+                        if (convertedModel && normalizePath(convertedModel) !== normalizePath(multipart.apply.model)) {
                             debugger
                         }
                     }
@@ -565,9 +565,9 @@ function ConvertBlockstates(inputAssetsFolder, outputAssetsFolder, namespace, ch
  * @param {string} input
  * @param {string} output
  */
-function Convert(inputVersion, outputVersion, input, output) {
-    const inputFormat = VersionToPackFormat[inputVersion]
-    const outputFormat = VersionToPackFormat[outputVersion]
+function convert(inputVersion, outputVersion, input, output) {
+    const inputFormat = versionToPackFormat[inputVersion]
+    const outputFormat = versionToPackFormat[outputVersion]
 
     if (!inputFormat) throw new Error(`Failed to get pack format from version ${inputVersion}`)
     if (!outputFormat) throw new Error(`Failed to get pack format from version ${outputVersion}`)
@@ -591,8 +591,8 @@ function Convert(inputVersion, outputVersion, input, output) {
         return
     }
 
-    const changes = Changes.CollectPackChanges(inputVersion, outputVersion)
-    const base = Pack.GetDefaultPack(outputVersion)
+    const changes = Changes.collectPackChanges(inputVersion, outputVersion)
+    const base = pack.getDefaultPack(outputVersion)
 
     if (!fs.existsSync(outputMinecraft)) { fs.mkdirSync(outputMinecraft, { recursive: true }) }
 
@@ -604,22 +604,22 @@ function Convert(inputVersion, outputVersion, input, output) {
     const inputTexturesItem = Path.join(inputTextures, (inputFormat < 4) ? 'items' : 'item')
     const outputTexturesItem = Path.join(outputTextures, (outputFormat < 4) ? 'items' : 'item')
 
-    ConvertTextures(inputTexturesItem, outputTexturesItem, changes.textures.item, base.textures.item, changes.uv.item, changes.tints.item, true)
+    convertTextures(inputTexturesItem, outputTexturesItem, changes.textures.item, base.textures.item, changes.uv.item, changes.tints.item, true)
 
     const inputTexturesBlock = Path.join(inputTextures, (inputFormat < 4) ? 'blocks' : 'block')
     const outputTexturesBlock = Path.join(outputTextures, (outputFormat < 4) ? 'blocks' : 'block')
 
-    ConvertTextures(inputTexturesBlock, outputTexturesBlock, changes.textures.block, base.textures.block, changes.uv.block, changes.tints.block, true)
+    convertTextures(inputTexturesBlock, outputTexturesBlock, changes.textures.block, base.textures.block, changes.uv.block, changes.tints.block, true)
 
     const inputTexturesEntity = Path.join(inputTextures, 'entity')
     const outputTexturesEntity = Path.join(outputTextures, 'entity')
 
-    ConvertTextures(inputTexturesEntity, outputTexturesEntity, changes.textures.entity, base.textures.entity, changes.uv.entity, changes.tints.entity, true)
+    convertTextures(inputTexturesEntity, outputTexturesEntity, changes.textures.entity, base.textures.entity, changes.uv.entity, changes.tints.entity, true)
 
     const inputTexturesGui = Path.join(inputTextures, 'gui')
     const outputTexturesGui = Path.join(outputTextures, 'gui')
 
-    ConvertTextures(inputTexturesGui, outputTexturesGui, changes.textures.gui, base.textures.gui, changes.uv.gui, changes.tints.gui, false)
+    convertTextures(inputTexturesGui, outputTexturesGui, changes.textures.gui, base.textures.gui, changes.uv.gui, changes.tints.gui, false)
 
     const inputModels = Path.join(inputMinecraft, 'models')
     const outputModels = Path.join(outputMinecraft, 'models')
@@ -627,24 +627,24 @@ function Convert(inputVersion, outputVersion, input, output) {
     if (!fs.existsSync(outputModels)) { fs.mkdirSync(outputModels, { recursive: true }) }
 
     const modelsKindBlock = 'block'
-    ConvertModels(modelsKindBlock, Path.join(input, 'assets'), Path.join(output, 'assets'), 'minecraft', changes, base, outputFormat)
+    convertModels(modelsKindBlock, Path.join(input, 'assets'), Path.join(output, 'assets'), 'minecraft', changes, base, outputFormat)
 
     const modelsKindItem = 'item'
-    ConvertModels(modelsKindItem,  Path.join(input, 'assets'), Path.join(output, 'assets'), 'minecraft', changes, base, outputFormat)
+    convertModels(modelsKindItem,  Path.join(input, 'assets'), Path.join(output, 'assets'), 'minecraft', changes, base, outputFormat)
 
     const inputBlockstates = Path.join(inputMinecraft, 'blockstates')
     const outputBlockstates = Path.join(outputMinecraft, 'blockstates')
 
     if (!fs.existsSync(outputBlockstates)) { fs.mkdirSync(outputBlockstates, { recursive: true }) }
 
-    ConvertBlockstates(Path.join(input, 'assets'), Path.join(output, 'assets'), 'minecraft', changes, base, outputFormat)
+    convertBlockstates(Path.join(input, 'assets'), Path.join(output, 'assets'), 'minecraft', changes, base, outputFormat)
 }
 
 /**
  * @param {string} path
  * @param {string} namespace
  */
-function NormalizePath(path, namespace = 'minecraft') {
+function normalizePath(path, namespace = 'minecraft') {
     if (path.includes(':')) {
         return path
     } else {
@@ -656,7 +656,7 @@ function NormalizePath(path, namespace = 'minecraft') {
  * @param {string} path
  * @returns {{ namespace: string | null, path: string }}
  */
-function ParsePath(path) {
+function parsePath(path) {
     if (path.includes(':')) {
         const namespace = path.split(':')[0]
         const _path = path.substring(namespace.length + 1)
@@ -670,4 +670,8 @@ function ParsePath(path) {
             path: path,
         }
     }
+}
+
+module.exports = {
+    convert,
 }
