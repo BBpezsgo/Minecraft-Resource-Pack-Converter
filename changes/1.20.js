@@ -183,4 +183,13 @@
             ],
         },
     },
+    blockstates: {
+        Added: [
+            "calibrated_sculk_sensor",
+            "pitcher_crop",
+            "pitcher_plant",
+            "sniffer_egg",
+            "suspicious_gravel",
+        ],
+    },
 })

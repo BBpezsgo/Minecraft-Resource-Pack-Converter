@@ -116,6 +116,50 @@ function Repeat(v, min, max) {
     return v
 }
 
+/**
+ * @template {any} T
+ * @param {T} obj
+ * @returns {T | undefined}
+ */
+function PrugeObject(obj) {
+    if (!obj) { return obj }
+
+    if (Array.isArray(obj)) {
+
+        for (let i = obj.length; i >= 0; i--) {
+            let element = obj[i]
+            element = PrugeObject(element)
+            if (!element) {
+                obj.splice(i, 1)
+            }
+        }
+
+        if (obj.length === 0) {
+            return undefined
+        }
+
+        return obj
+    }
+    
+    if (typeof obj === 'object') {
+        const keys = Object.keys(obj)
+        for (const key of keys) {
+            /** @type {any} */
+            const value = obj[key]
+            obj[key] = PrugeObject(value)
+            if (!obj[key]) { delete obj[key] }
+        }
+        
+        if (Object.keys(obj).length === 0) {
+            return undefined
+        }
+
+        return obj
+    }
+
+    return obj
+}
+
 module.exports = {
     CapitalizeFirst,
     LevenshteinDistance,
@@ -124,4 +168,5 @@ module.exports = {
     GetAsset,
     Clamp,
     Repeat,
+    PrugeObject,
 }

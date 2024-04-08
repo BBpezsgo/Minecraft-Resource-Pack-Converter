@@ -90,4 +90,12 @@
             "chest/trapped": "chest",
         },
     },
+    blockstates: {
+        Added: [
+            "beehive",
+            "bee_nest",
+            "honeycomb_block",
+            "honey_block",
+        ]
+    }
 })

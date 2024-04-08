@@ -9,7 +9,7 @@ const Utils = {
     },
     ReadJsons: /** @type {(folder: string) => (null | { [id: string]: any })} */ (folder) => {
         if (!fs.existsSync(folder)) return null
-        const files = fs.readdirSync(folder, { recursive: false, withFileTypes: false })
+        const files = fs.readdirSync(folder)
         const result = { }
         for (const file of files) {
             if (typeof file !== 'string') continue
@@ -25,7 +25,7 @@ const Utils = {
     },
     ReadTexts: /** @type {(folder: string) => (null | { [id: string]: string })} */ (folder) => {
         if (!fs.existsSync(folder)) return null
-        const files = fs.readdirSync(folder, { recursive: false, withFileTypes: false })
+        const files = fs.readdirSync(folder)
         const result = { }
         for (const file of files) {
             if (typeof file !== 'string') continue
@@ -42,7 +42,7 @@ const Utils = {
     },
     ReadFiles: /** @type {(folder: string, extension: string = null) => (null | { [file: string]: string })} */ (folder, extension = undefined) => {
         if (!fs.existsSync(folder)) return null
-        const files = fs.readdirSync(folder, { recursive: false, withFileTypes: false })
+        const files = fs.readdirSync(folder)
         const result = { }
         for (const file of files) {
             if (typeof file !== 'string') continue
@@ -54,7 +54,7 @@ const Utils = {
     },
     ReadFilesRecursive: /** @type {(folder: string, extension: string = null) => (null | import('./pack').Directory)} */ (folder, extension = undefined) => {
         if (!fs.existsSync(folder)) return null
-        const files = fs.readdirSync(folder, { recursive: false, withFileTypes: false })
+        const files = fs.readdirSync(folder)
         /** @type {import('./pack').Directory} */
         const result = { }
         for (const file of files) {
@@ -82,8 +82,17 @@ function ReadResourcePack(path) {
     const mcmetaPath = Path.join(path, 'pack.mcmeta')
     // if (!fs.existsSync(mcmetaPath)) return null
 
+    const mcmetaContents = fs.existsSync(mcmetaPath) ? fs.readFileSync(mcmetaPath, 'utf8') : null
+
     /** @type {Types.McMeta | null} */
-    const mcmeta = (fs.existsSync(mcmetaPath)) ? JSON.parse(fs.readFileSync(mcmetaPath, 'utf8')) : null
+    const mcmeta = mcmetaContents ? (function () {
+        try {
+            return JSON.parse(mcmetaContents)
+        } catch (error) {
+            console.warn(error)
+            return null
+        }
+    })() : null
 
     const newResourcePack = new ResourcePack(path, mcmeta)
     

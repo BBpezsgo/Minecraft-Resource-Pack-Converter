@@ -62,6 +62,11 @@ function NoChanges() {
                 Deleted: { },
             },
         },
+        blockstates: {
+            Added: [],
+            Renamed: {},
+            Deleted: [],
+        },
     }
 }
 
@@ -115,7 +120,7 @@ let  v1_20 = {
 }
 
 /** @type {import('./changes').TheVersionHistory} */
-const versionHistory = {
+const VersionHistory = {
     '1.6': v1_6,
     '1.7': v1_7,
     '1.8': v1_8,
@@ -133,7 +138,7 @@ const versionHistory = {
     '1.20': v1_20,
 }
 
-for (const version in versionHistory) {
+for (const version in VersionHistory) {
     const path = Path.join(__dirname, 'changes', version + '.js')
     if (!fs.existsSync(path)) {
         // console.error(`Changes for version ${version} not found`)
@@ -142,7 +147,7 @@ for (const version in versionHistory) {
     const js = fs.readFileSync(path, 'utf8')
     const res = eval(js)
     if (res) {
-        versionHistory[version] = {
+        VersionHistory[version] = {
             ...NoChanges(),
             ...res,
         }
@@ -273,6 +278,7 @@ function InversePack(changes) {
             entity: InverseSimpleChanges(changes.tints.entity),
             gui: InverseSimpleChanges(changes.tints.gui),
         },
+        blockstates: ToNonullStringChanges(changes.blockstates),
     }
 }
 
@@ -330,6 +336,7 @@ function ToNonullPack(changes) {
             entity: ToNonullSimpleChanges(changes?.tints?.entity, { }),
             gui: ToNonullSimpleChanges(changes?.tints?.gui, { }),
         },
+        blockstates: ToNonullStringChanges(changes?.blockstates),
     }
 }
 
@@ -460,12 +467,12 @@ function ChainUVs(uvsA, uvsB) {
 }
 
 /**
- * @param {import('./changes').Version} from
- * @param {import('./changes').Version} to
+ * @param {import('./changes').Version | number} from
+ * @param {import('./changes').Version | number} to
  */
 function ChainPackChanges(from, to) {
-    const fromIndex = Pack.Versions.indexOf(from)
-    const toIndex = Pack.Versions.indexOf(to)
+    const fromIndex = (typeof from === 'string') ? Pack.Versions.indexOf(from) : from
+    const toIndex = (typeof to === 'string') ? Pack.Versions.indexOf(to) : to
 
     if (fromIndex === -1 || toIndex === -1) {
         throw new Error('Failed to get version index')
@@ -481,7 +488,7 @@ function ChainPackChanges(from, to) {
     for (let i = fromIndex; i < toIndex; i++) {
         const version = Pack.Versions[i]
         if (!version) { continue }
-        const currentChanges = versionHistory[version]
+        const currentChanges = VersionHistory[version]
 
         changes.models.block = ChainStringChanges(changes.models.block, currentChanges.models?.block)
         changes.models.item = ChainStringChanges(changes.models.item, currentChanges.models?.item)
@@ -513,11 +520,14 @@ function CollectPackChanges(from, to) {
     if (!toFormat) throw new Error(`Failed to get pack format from version ${to}`)
     if (fromFormat == toFormat) throw new Error(`Pack formats are the same`)
 
+    const fromIndex = Pack.Versions.indexOf(from)
+    const toIndex = Pack.Versions.indexOf(to)
+    
     let changes
     if (fromFormat < toFormat) {
-        changes = ChainPackChanges(from, to)
+        changes = ChainPackChanges(fromIndex, toIndex + 1)
     } else {
-        changes = ChainPackChanges(to, from)
+        changes = ChainPackChanges(toIndex + 1, fromIndex)
         changes = InversePack(changes)
     }
     return changes
@@ -546,7 +556,7 @@ function Evaluate(changes, value) {
 }
 
 module.exports = {
-    VersionHistory: versionHistory,
+    VersionHistory,
     NoChanges,
     Base,
     CollectPackChanges,

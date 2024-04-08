@@ -11,17 +11,16 @@ const Utils = require('./utils')
 const Colors = require('./colors')
 const Basic = require('./basic')
 const UV = require('./uv')
-const {
-    DefaultResourcePacksPath,
-    Packs,
-} = require('./constants')
-const MinecraftRoot = require('./paths')()
+const Constants = require('./constants')
+const combine = require('./combine')
+const compareFolders = require('./sames')
+const prugeFolder = require('./pruge-folders')
 
-const VanillaResourcePacksPath = Path.join(MinecraftRoot, 'resourcepacks')
+const VanillaResourcePacksPath = Path.join(Constants.Minecraft, 'resourcepacks')
 
 const VanillaResourcePacks = fs.readdirSync(VanillaResourcePacksPath)
 
-/** @type {{[name:string]:Pack.ResourcePack}} */
+/** @type {{ [name: string]: Pack.ResourcePack }} */
 const ResourcePacks = { }
 for (const ResourcePackFolder of VanillaResourcePacks) {
     const ResourcePack = Pack.ReadResourcePack(Path.join(VanillaResourcePacksPath, ResourcePackFolder))
@@ -30,21 +29,24 @@ for (const ResourcePackFolder of VanillaResourcePacks) {
 }
 
 /**
- * @type {{
- *   [version: string]: Pack.ResourcePack | undefined
- * }}
+ * @type {{ [version in Changes.Version]: Pack.ResourcePack | undefined }}
  */
 const DefaultResourcePacks = {
-    '1.11': Pack.ReadResourcePack(Path.join(DefaultResourcePacksPath, '1.11.2')),
-    '1.12': Pack.ReadResourcePack(Path.join(DefaultResourcePacksPath, '1.12.2')),
-    '1.13': Pack.ReadResourcePack(Path.join(DefaultResourcePacksPath, '1.13.2')),
-    '1.14': Pack.ReadResourcePack(Path.join(DefaultResourcePacksPath, '1.14.4')),
-    '1.15': Pack.ReadResourcePack(Path.join(DefaultResourcePacksPath, '1.15.2')),
-    '1.16': Pack.ReadResourcePack(Path.join(DefaultResourcePacksPath, '1.16.5')),
-    '1.17': Pack.ReadResourcePack(Path.join(DefaultResourcePacksPath, '1.17.1')),
-    '1.18': Pack.ReadResourcePack(Path.join(DefaultResourcePacksPath, '1.18.2')),
-    '1.19': Pack.ReadResourcePack(Path.join(DefaultResourcePacksPath, '1.19.4')),
-    '1.20': Pack.ReadResourcePack(Path.join(DefaultResourcePacksPath, '1.20')),
+    '1.6': Pack.ReadResourcePack(Path.join(Constants.DefaultResourcePacksPath, '1.6.4')),
+    '1.7': Pack.ReadResourcePack(Path.join(Constants.DefaultResourcePacksPath, '1.7.10')),
+    '1.8': Pack.ReadResourcePack(Path.join(Constants.DefaultResourcePacksPath, '1.8.9')),
+    '1.9': Pack.ReadResourcePack(Path.join(Constants.DefaultResourcePacksPath, '1.9.3')),
+    '1.10': Pack.ReadResourcePack(Path.join(Constants.DefaultResourcePacksPath, '1.10.2')),
+    '1.11': Pack.ReadResourcePack(Path.join(Constants.DefaultResourcePacksPath, '1.11.2')),
+    '1.12': Pack.ReadResourcePack(Path.join(Constants.DefaultResourcePacksPath, '1.12.2')),
+    '1.13': Pack.ReadResourcePack(Path.join(Constants.DefaultResourcePacksPath, '1.13.2')),
+    '1.14': Pack.ReadResourcePack(Path.join(Constants.DefaultResourcePacksPath, '1.14.4')),
+    '1.15': Pack.ReadResourcePack(Path.join(Constants.DefaultResourcePacksPath, '1.15.2')),
+    '1.16': Pack.ReadResourcePack(Path.join(Constants.DefaultResourcePacksPath, '1.16.5')),
+    '1.17': Pack.ReadResourcePack(Path.join(Constants.DefaultResourcePacksPath, '1.17.1')),
+    '1.18': Pack.ReadResourcePack(Path.join(Constants.DefaultResourcePacksPath, '1.18.2')),
+    '1.19': Pack.ReadResourcePack(Path.join(Constants.DefaultResourcePacksPath, '1.19.4')),
+    '1.20': Pack.ReadResourcePack(Path.join(Constants.DefaultResourcePacksPath, '1.20')),
 }
 
 /**
@@ -95,95 +97,163 @@ function CheckFull(versionA, versionB) {
     
     const modelsB = {
         item: packB.GetModels('item') ?? { },
-        block: packB.GetModels('block') ?? {},
+        block: packB.GetModels('block') ?? { },
+    }
+
+    const blockstatesA = [ ]
+    const blockstatesB = [ ]
+
+    if (fs.existsSync(Path.join(packA.Path, 'blockstates'))) {
+        const _files = fs.readdirSync(Path.join(packA.Path, 'blockstates'))
+        for (const _file of _files) {
+            if (!_file.endsWith('.json')) { continue }
+            const name = _file.substring(0, _file.length - 5)
+            blockstatesA.push(name)
+        }
+    }
+
+    if (fs.existsSync(Path.join(packB.Path, 'blockstates'))) {
+        const _files = fs.readdirSync(Path.join(packB.Path, 'blockstates'))
+        for (const _file of _files) {
+            if (!_file.endsWith('.json')) { continue }
+            const name = _file.substring(0, _file.length - 5)
+            blockstatesB.push(name)
+        }
     }
 
     const generatedResult = Changes.NoChanges()
 
     const Check = function(
-        /** @type {import('./basic').Map<string, string>} */ collectionA,
-        /** @type {import('./basic').Map<string, string>} */ collectionB,
+        /** @type {import('./basic').Map<string, string> | string[]} */ collectionA,
+        /** @type {import('./basic').Map<string, string> | string[]} */ collectionB,
         /** @type {import('./changes').PackChangesNullable} */ changes,
-        /** @type {'texture' | 'model'} */ kind1,
-        /** @type {'item' | 'block' | 'entity' | 'gui'} */ kind2) {
+        /** @type {'textures' | 'models' | 'blockstates'} */ kind1,
+        /** @type {'item' | 'block' | 'entity' | 'gui' | null} */ kind2) {
 
-        /** @type {'textures' | 'models'} */
-        let _kind1
-        switch (kind1) {
-            case 'texture':
-                _kind1 = 'textures'
-                break
-            case 'model':
-                _kind1 = 'models'
-                break
-            default:
-                throw new Error('bruh')
+        /** @type {import('./changes').StringChangesNullable | undefined} */
+        const kindChanges =  kind2 ? changes[kind1]?.[kind2] : changes[kind1]
+
+        const added = kindChanges?.Added ?? []
+        const renamed = kindChanges?.Renamed ?? { }
+        const deleted = kindChanges?.Deleted ?? []
+
+        const label = (kind2 ? (Utils.CapitalizeFirst(kind2) + ' ' + kind1) : kind1)
+
+        if (Array.isArray(collectionA) !== Array.isArray(collectionB)) {
+            throw new Error('Different collection types')
         }
 
-        const added = changes[_kind1]?.[kind2]?.Added ?? []
-
-        const renamed = changes[_kind1]?.[kind2]?.Renamed ?? { }
-
-        const deleted = changes[_kind1]?.[kind2]?.Deleted ?? []
-
-        const label = Utils.CapitalizeFirst(kind2) + ' ' + kind1
-
-        for (const name in collectionA) {
-            if (!collectionB[name]) {
-                if (deleted.includes(name)) {
-                    if (renamed[name]) {
-                        console.log(`${label} \"${name}\" is renamed (to \"${renamed[name]}\") and deleted at the same time`)
+        if (Array.isArray(collectionA) && Array.isArray(collectionB)) {
+            for (const name of collectionA) {
+                if (!collectionB.includes(name)) {
+                    if (deleted.includes(name)) {
+                        if (renamed[name]) {
+                            console.log(`${label} \"${name}\" is renamed (to \"${renamed[name]}\") and deleted at the same time`)
+                        }
+    
+                        continue
                     }
-
-                    continue
-                }
-                if (renamed[name]) {
-                    continue
-                }
-                console.log(`${label} \"${name}\" is deleted`)
-                generatedResult[_kind1][kind2]?.Deleted.push(name)
-            } else {
-                if (deleted.includes(name)) {
-                    // console.log(`${label} \"${name}\" is not deleted`)
-                }
-                if (renamed[name]) {
-                    // console.log(`${label} \"${name}\" is not renamed to \"${renamed[name]}\"`)
+                    if (renamed[name]) {
+                        continue
+                    }
+                    console.log(`${label} \"${name}\" is deleted`);
+    
+                    (kind2 ? generatedResult[kind1][kind2] : generatedResult[kind1])?.Deleted.push(name)
+                } else {
+                    if (deleted.includes(name)) {
+                        // console.log(`${label} \"${name}\" is not deleted`)
+                    }
+                    if (renamed[name]) {
+                        // console.log(`${label} \"${name}\" is not renamed to \"${renamed[name]}\"`)
+                    }
                 }
             }
-        }
-        
-        for (const name in collectionB) {
-            const key = Basic.GetKey(name, renamed)
-            if (!collectionA[name]) {
-                if (added.includes(name)) {
-                    if (key) {
-                        console.log(`${label} \"${key}\" is renamed (to \"${name}\") and added at the same time`)
+            
+            for (const name of collectionB) {
+                const key = Basic.GetKey(name, renamed)
+                if (!collectionA.includes(name)) {
+                    if (added.includes(name)) {
+                        if (key) {
+                            console.log(`${label} \"${key}\" is renamed (to \"${name}\") and added at the same time`)
+                        }
+    
+                        continue
                     }
-
-                    continue
+                    if (key) {
+                        continue
+                    }
+                    console.log(`${label} \"${name}\" is added`);
+                    (kind2 ? generatedResult[kind1][kind2] : generatedResult[kind1])?.Added.push(name)
+                } else {
+                    if (added.includes(name)) {
+                        console.log(`${label} \"${name}\" is not added`)
+                    }
+                    if (key) {
+                        // console.log(`${label} \"${key}\" is not renamed to \"${name}\"`)
+                    }
                 }
-                if (key) {
-                    continue
+            }
+        } else {
+            for (const name in collectionA) {
+                if (!collectionB[name]) {
+                    if (deleted.includes(name)) {
+                        if (renamed[name]) {
+                            console.log(`${label} \"${name}\" is renamed (to \"${renamed[name]}\") and deleted at the same time`)
+                        }
+    
+                        continue
+                    }
+                    if (renamed[name]) {
+                        continue
+                    }
+                    console.log(`${label} \"${name}\" is deleted`);
+    
+                    (kind2 ? generatedResult[kind1][kind2] : generatedResult[kind1])?.Deleted.push(name)
+                } else {
+                    if (deleted.includes(name)) {
+                        // console.log(`${label} \"${name}\" is not deleted`)
+                    }
+                    if (renamed[name]) {
+                        // console.log(`${label} \"${name}\" is not renamed to \"${renamed[name]}\"`)
+                    }
                 }
-                console.log(`${label} \"${name}\" is added`)
-                generatedResult[_kind1][kind2]?.Added.push(name)
-            } else {
-                if (added.includes(name)) {
-                    console.log(`${label} \"${name}\" is not added`)
-                }
-                if (key) {
-                    // console.log(`${label} \"${key}\" is not renamed to \"${name}\"`)
+            }
+            
+            for (const name in collectionB) {
+                const key = Basic.GetKey(name, renamed)
+                if (!collectionA[name]) {
+                    if (added.includes(name)) {
+                        if (key) {
+                            console.log(`${label} \"${key}\" is renamed (to \"${name}\") and added at the same time`)
+                        }
+    
+                        continue
+                    }
+                    if (key) {
+                        continue
+                    }
+                    console.log(`${label} \"${name}\" is added`);
+                    (kind2 ? generatedResult[kind1][kind2] : generatedResult[kind1])?.Added.push(name)
+                } else {
+                    if (added.includes(name)) {
+                        console.log(`${label} \"${name}\" is not added`)
+                    }
+                    if (key) {
+                        // console.log(`${label} \"${key}\" is not renamed to \"${name}\"`)
+                    }
                 }
             }
         }
     }
 
-    Check(texturesA.item, texturesB.item, changes, 'texture', 'item')
-    Check(texturesA.block, texturesB.block, changes, 'texture', 'block')
-    Check(texturesA.entity, texturesB.entity, changes, 'texture', 'entity')
-    Check(texturesA.gui, texturesB.gui, changes, 'texture', 'gui')
-    Check(modelsA.item, modelsB.item, changes, 'model', 'item')
-    Check(modelsA.block, modelsB.block, changes, 'model', 'block')
+    Check(texturesA.item, texturesB.item, changes, 'textures', 'item')
+    Check(texturesA.block, texturesB.block, changes, 'textures', 'block')
+    Check(texturesA.entity, texturesB.entity, changes, 'textures', 'entity')
+    Check(texturesA.gui, texturesB.gui, changes, 'textures', 'gui')
+    Check(modelsA.item, modelsB.item, changes, 'models', 'item')
+    Check(modelsA.block, modelsB.block, changes, 'models', 'block')
+
+    Check(blockstatesA, blockstatesB, changes, 'blockstates', null)
 
     // @ts-ignore
     if (generatedResult.models.block.Added.length === 0) { generatedResult.models.block.Added = undefined }
@@ -220,8 +290,17 @@ function CheckFull(versionA, versionB) {
     // @ts-ignore
     if (generatedResult.textures.entity.Deleted.length === 0) { generatedResult.textures.entity.Deleted = undefined }
 
+    // @ts-ignore
+    if (generatedResult.blockstates.Added.length === 0) { generatedResult.blockstates.Added = undefined }
+    // @ts-ignore
+    if (Object.keys(generatedResult.blockstates.Renamed).length === 0) { generatedResult.blockstates.Renamed = undefined }
+    // @ts-ignore
+    if (generatedResult.blockstates.Deleted.length === 0) { generatedResult.blockstates.Deleted = undefined }
+
+    const prugedResult = Utils.PrugeObject(generatedResult)
+
     const resultPath = Path.join(__dirname, 'result', versionB + '.js')
-    let resultText = `(${JSON.stringify(generatedResult, null, ' ')})`
+    const resultText = `/** @type {import('../changes').PackChangesNullable} */\n(${(prugedResult ? JSON.stringify(prugedResult, null, '    ') : '{ }')})`
     fs.writeFileSync(resultPath, resultText)
 }
 
@@ -309,19 +388,91 @@ function InvertAllUVs() {
     }
 }
 
-function Entry() {
-    if (true) {
-        // CheckFull('1.11', '1.12')
-    
-        // InvertAllUVs()
-
-        LogAnalyser.Clear()
-        const convertable = 'Cool Textures'
-        PackConverter.Convert('1.20', '1.12', Packs[convertable], Path.join(VanillaResourcePacksPath, convertable))    
-    } else {
-        LogAnalyser.Print()
+function CheckFullAll() {
+    /** @ts-ignore @type {Changes.Version[]} */
+    const versions = Object.keys(DefaultResourcePacks)
+    for (let i = 1; i < versions.length; i++) {
+        const prev = versions[i - 1]
+        const curr = versions[i]
+        
+        console.log(`${prev} --> ${curr}`)
+        CheckFull(prev, curr)
     }
 }
 
-Entry()
-console.log('Done')
+(function() {
+    /*
+    const root = 'C:\\Users\\bazsi\\Desktop\\Minecraft\\Cool Textures'
+    
+    if (true) {
+        combine(
+            'D:\\Program Files\\LegacyLauncher\\game\\resourcepacks\\Cool Textures.zip',
+            ...[
+                `${root}\\ArtisanalDefault`,
+                `${root}\\ComputerCreate`,
+                `${root}\\Create Computers`,
+                `${root}\\Updated_Engineering`,
+                `${root}\\zozos-textures`,
+                `${root}\\bruh`,
+            ])
+    } else {
+        const everything = `${root}\\bruh`
+        const original = `${root}\\Updated_Engineering-original`
+    
+        const tempFolder = `${root}\\Updated_Engineering`
+    
+        if (fs.existsSync(tempFolder)) {
+            fs.rmSync(tempFolder, { force: true, recursive: true })
+        }
+    
+        fs.mkdirSync(tempFolder)
+    
+        fs.cpSync(everything, tempFolder, { recursive: true })
+    
+        {
+            const res = compareFolders(
+                tempFolder,
+                original,
+                'differents')
+        
+            for (const item of res) {
+                console.warn(`Deleted ${item.a}`)
+                fs.rmSync(item.a)
+            }
+        
+            prugeFolder(tempFolder)
+        }
+        
+        {
+            const res = compareFolders(
+                everything,
+                tempFolder,
+                'sames')
+        
+            for (const item of res) {
+                console.warn(`Deleted ${item.a}`)
+                fs.rmSync(item.a)
+            }
+        
+            prugeFolder(everything)
+        }
+    }
+    return
+    */
+
+    if (true) {
+        CheckFullAll()
+        // CheckFull('1.13', '1.14')
+    
+        // InvertAllUVs()
+
+        // return
+
+        // LogAnalyser.Clear()
+        // const convertable = 'Cool Textures'
+        // PackConverter.Convert('1.20', '1.12', Packs[convertable], Path.join(VanillaResourcePacksPath, convertable))    
+        // PackConverter.Convert('1.20', '1.16', Constants.Packs['Cool Textures'], Constants.GetPath('Cool Textures', 'Create Above and Beyond'))    
+    } else {
+        LogAnalyser.Print()
+    }
+})()

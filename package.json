@@ -3,6 +3,11 @@
         "start": "node index.js"
     },
     "dependencies": {
-        "jimp": "^0.22.10"
+        "archiver": "^7.0.1",
+        "jimp": "^0.22.10",
+        "node-stream-zip": "^1.15.0"
+    },
+    "devDependencies": {
+        "@types/archiver": "^6.0.2"
     }
 }

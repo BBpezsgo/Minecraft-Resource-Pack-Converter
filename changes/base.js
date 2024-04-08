@@ -2350,9 +2350,10 @@
         ],
     },
     uv: {
-        block: [],
-        item: [],
-        entity: [],
-        gui: [],
+        block: [ ],
+        item: [ ],
+        entity: [ ],
+        gui: [ ],
     },
+    blockstates: [ ]
 })

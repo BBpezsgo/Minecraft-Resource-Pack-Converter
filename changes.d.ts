@@ -41,6 +41,7 @@ export type PackStructureNullable<T> = {
         entity?: undefined
     }
     textures?: TexturesStructureNullable<T>
+    blockstates?: T
 }
 
 export type PackStructure<T> = {
@@ -50,6 +51,7 @@ export type PackStructure<T> = {
         entity: undefined
     }
     textures: TexturesStructure<T>
+    blockstates: T
 }
 
 export type SimpleChanges<T = string[]> = {

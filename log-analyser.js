@@ -1,9 +1,9 @@
 const fs = require('fs')
 const Colors = require('./colors')
 const Path = require('path')
-const MinecraftRoot = require('./paths')()
+const Constants = require('./constants')
 const PATH_LOG_GENERAL = 'logs/latest.log'
-const PATH_LOGS = Path.join(MinecraftRoot, PATH_LOG_GENERAL)
+const PATH_LOGS = Path.join(Constants.Minecraft, PATH_LOG_GENERAL)
 
 function Clear() {
     fs.writeFileSync(PATH_LOGS, '', 'utf8')

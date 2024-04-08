@@ -5,7 +5,7 @@ const Changes = require('./changes')
 const { VersionToPackFormat } = require('./pack')
 const Utils = require('./utils')
 const UV = require('./uv')
-const Jimp = require("jimp")
+const Jimp = require('jimp')
 
 /**
  * @param {string} inputFolder
@@ -267,7 +267,7 @@ function ConvertModel(relativePath, inputAssetsFolder, outputAssetsFolder, names
     let outputFilename = Changes.Evaluate(changes.models[kind], filename)
     if (outputFilename === undefined) {
         if (!base.models[kind].includes(filename)) {
-            console.warn(`[PackConverter]: Unknown model "${relativePath}"`)
+            console.log(`[PackConverter]: Unknown model "${relativePath}"`)
         }
         outputFilename = filename
     }
@@ -383,9 +383,9 @@ function ConvertModel(relativePath, inputAssetsFolder, outputAssetsFolder, names
         if (!fs.existsSync(outputTexturePath)) {
             if (!fs.existsSync(inputTexturePath)) {
                 if (convertedTexture && base.textures[textureKind].includes(convertedTexture)) {
-                    console.log(`[PackConverter]: Original texture "${asset.relativePath}" for model "${relativePath}" not found`)
+                    // console.log(`[PackConverter]: Original texture "${asset.relativePath}" for model "${relativePath}" not found`)
                 } else {
-                    console.warn(`[PackConverter]: Original texture "${asset.relativePath}" for model "${relativePath}" not found`)
+                    // console.warn(`[PackConverter]: Original texture "${asset.relativePath}" for model "${relativePath}" not found`)
                 }
             } else {
                 console.log(`[PackConverter]: Converted texture "${relativePathConverted}" for model "${relativePath}" not found, copy non-converted texture`)
@@ -441,6 +441,121 @@ function ConvertModels(kind, inputAssetsFolder, outputAssetsFolder, namespace, c
             outputFormat,
             false
         )
+    }
+}
+
+/**
+ * @param {string} inputAssetsFolder
+ * @param {string} outputAssetsFolder
+ * 
+ * @param {string} resourcePath
+ * 
+ * @param {import('./changes').PackChanges} changes
+ * @param {import('./changes').PackStructure<string[]>} base
+ */
+function ConvertModelName(inputAssetsFolder, outputAssetsFolder, resourcePath, changes, base, namespace = 'minecraft') {
+    let model = Utils.GetAsset(resourcePath, namespace)
+    const modelName = Path.basename(model.relativePath)
+    const type = model.relativePath.split('/')[0]
+    
+    if (model.relativePath === type + '/' + modelName) {
+        let convertedModelName = Changes.Evaluate(changes.models['block'], modelName)
+
+        if (convertedModelName === undefined && base.models['block'].includes(modelName)) {
+            convertedModelName = modelName
+        }
+        
+        if (convertedModelName) {
+            const convertedModel = Path.join(Path.dirname(model.relativePath), convertedModelName).replace(/\\/g, '/')
+            if (!fs.existsSync(Path.join(inputAssetsFolder, model.namespace, 'models', convertedModel + '.json'))) {
+                console.warn(`[PackConverter]: Model ${model.namespace}:${convertedModel} not found`)
+            }
+            return `${model.namespace}:${convertedModel}`
+        }
+    } else {
+        return `${model.namespace}:${model.relativePath}`
+    }
+
+}
+/**
+ * @param {string} inputAssetsFolder
+ * @param {string} outputAssetsFolder
+ * 
+ * @param {string} namespace
+ * 
+ * @param {import('./changes').PackChanges} changes
+ * @param {import('./changes').PackStructure<string[]>} base
+ * 
+ * @param {import('./pack').PackFormat} outputFormat
+ */
+function ConvertBlockstates(inputAssetsFolder, outputAssetsFolder, namespace, changes, base, outputFormat) {
+    const files = fs.readdirSync(Path.join(inputAssetsFolder, 'minecraft', 'blockstates'))
+    for (const file of files) {
+        if (!file.endsWith('.json')) { continue }
+        const filePath = Path.join(inputAssetsFolder, 'minecraft', 'blockstates', file)
+        const contentText = fs.readFileSync(filePath, 'utf8')
+        try {
+            /** @type {import('./blockstate').Blockstate} */
+            const content = JSON.parse(contentText)   
+            
+            if (typeof content !== 'object') {
+                console.warn(`[PackConverter]: Blockstate is not an object (\"${filePath}\")`)
+                continue
+            }
+            
+            if (content.multipart) {
+                for (let i = 0; i < content.multipart.length; i++) {
+                    const multipart = content.multipart[i]
+                    if (!multipart.apply) debugger
+                    if (Array.isArray(multipart.apply)) {
+                        for (let j = 0; j < multipart.apply.length; j++) {
+                            const apply = multipart.apply[j]
+                            if (!apply.model) debugger
+
+                            const _p = ParsePath(apply.model)
+
+                            ConvertModel(
+                                _p.path,
+                                inputAssetsFolder,
+                                outputAssetsFolder,
+                                _p.namespace ?? namespace,
+                                changes,
+                                base,
+                                outputFormat)
+
+                            let convertedModel = ConvertModelName(inputAssetsFolder, outputAssetsFolder, apply.model, changes, base)
+                        
+                            if (convertedModel && NormalizePath(convertedModel) !== NormalizePath(apply.model)) {
+                                debugger
+                            }
+                        }
+                    } else {
+                        if (!multipart.apply.model) debugger
+                        
+                        const _p = ParsePath(multipart.apply.model)
+
+                        ConvertModel(
+                            _p.path,
+                            inputAssetsFolder,
+                            outputAssetsFolder,
+                            _p.namespace ?? namespace,
+                            changes,
+                            base,
+                            outputFormat)
+
+                        let convertedModel = ConvertModelName(inputAssetsFolder, outputAssetsFolder, multipart.apply.model, changes, base)
+                                                
+                        if (convertedModel && NormalizePath(convertedModel) !== NormalizePath(multipart.apply.model)) {
+                            debugger
+                        }
+                    }
+                }
+            } else if (content.variants) {
+
+            } else if (content.parent) {
+                
+            }
+        } catch (error) { console.error(error) }
     }
 }
 
@@ -516,8 +631,43 @@ function Convert(inputVersion, outputVersion, input, output) {
 
     const modelsKindItem = 'item'
     ConvertModels(modelsKindItem,  Path.join(input, 'assets'), Path.join(output, 'assets'), 'minecraft', changes, base, outputFormat)
+
+    const inputBlockstates = Path.join(inputMinecraft, 'blockstates')
+    const outputBlockstates = Path.join(outputMinecraft, 'blockstates')
+
+    if (!fs.existsSync(outputBlockstates)) { fs.mkdirSync(outputBlockstates, { recursive: true }) }
+
+    ConvertBlockstates(Path.join(input, 'assets'), Path.join(output, 'assets'), 'minecraft', changes, base, outputFormat)
 }
 
-module.exports = {
-    Convert,
+/**
+ * @param {string} path
+ * @param {string} namespace
+ */
+function NormalizePath(path, namespace = 'minecraft') {
+    if (path.includes(':')) {
+        return path
+    } else {
+        return namespace + ':' + path
+    }
+}
+
+/**
+ * @param {string} path
+ * @returns {{ namespace: string | null, path: string }}
+ */
+function ParsePath(path) {
+    if (path.includes(':')) {
+        const namespace = path.split(':')[0]
+        const _path = path.substring(namespace.length + 1)
+        return {
+            namespace: namespace,
+            path: _path,
+        }
+    } else {
+        return {
+            namespace: null,
+            path: path,
+        }
+    }
 }

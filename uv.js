@@ -1,6 +1,6 @@
 
-const Jimp = require("jimp")
-const { Clamp, Repeat } = require('./utils')
+const Jimp = require('jimp')
+const { Clamp } = require('./utils')
 
 /**
  * @param {number} width
