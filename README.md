@@ -4,3 +4,5 @@ In theory, you can convert resource packs back and forth to other versions from 
 
 > [!IMPORTANT]
 > Be sure to back up your resource packs before using the utility.
+
+The only function you need is `convert(inputVersion, outputVersion, input, output)` imported from `/index.js`.
