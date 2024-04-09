@@ -1,4 +1,5 @@
 const fs = require('fs')
+const path = require('path')
 
 /**
  * @param {string} text
@@ -160,6 +161,22 @@ function prugeObject(obj) {
     return obj
 }
 
+/**
+ * @param {number} ms
+ */
+function sleepAsync(ms) { return new Promise(resolve => setTimeout(resolve, ms)) }
+
+/**
+ * @param {number} ms
+ */
+function sleep(ms) { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms) }
+
+const paths = {
+    versionChanges: path.join(__dirname, '..', 'data', 'changes'),
+    generatedVersionChanges: path.join(__dirname, '..', 'data', 'result'),
+    uvs: path.join(__dirname, '..', 'data', 'uvs'),
+}
+
 module.exports = {
     capitalizeFirst,
     levenshteinDistance,
@@ -169,4 +186,7 @@ module.exports = {
     clamp,
     repeat,
     prugeObject,
+    sleepAsync,
+    sleep,
+    paths,
 }

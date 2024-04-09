@@ -1,6 +1,7 @@
 const Pack = require('./pack')
 const fs = require('fs')
 const Path = require('path')
+const { paths } = require('./utils')
 
 /**
  * @export
@@ -299,7 +300,7 @@ const versionHistory = {
 }
 
 for (const version in versionHistory) {
-    const path = Path.join(__dirname, 'changes', version + '.js')
+    const path = Path.join(paths.versionChanges, version + '.js')
     if (!fs.existsSync(path)) {
         // console.error(`Changes for version ${version} not found`)
         continue
@@ -316,7 +317,7 @@ for (const version in versionHistory) {
 
 /** @returns {import('./changes').PackStructure<string[]>} */
 function base() {
-    const path = Path.join(__dirname, 'changes', 'base' + '.js')
+    const path = Path.join(paths.versionChanges, 'base' + '.js')
     if (!fs.existsSync(path)) {
         throw new Error('base.js not found')
     }

@@ -1,4 +1,4 @@
-/** @type {import('../changes').PackStructure<string[]>} */
+/** @type {import('../../src/changes').PackStructure<string[]>} */
 ({
     models: {
         item: [

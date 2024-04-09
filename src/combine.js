@@ -5,24 +5,12 @@ const Progress = require('./progress')
 
 module.exports = async function(/** @type {string} */ outputZip, /** @type {Array<string>} */ ...input) {
     const output = fs.createWriteStream(outputZip)
-    const archive = archiver('zip', {
-        zlib: { level: 9 }
-    })
-
-    archive.on('warning', function(/** @type {archiver.ArchiverError} */ err) {
-        if (err.code === 'ENOENT') {
     
-        } else {
-            throw err
-        }
-    })
+    /**
+     * @type {Array<{ filePath: string; name: string; }>}
+     */
+    const filesToArchive = [ ]
     
-    archive.on('error', function(/** @type {archiver.ArchiverError} */ err) {
-        throw err
-    })
-    
-    archive.pipe(output)
-
     for (let i = 0; i < input.length; i++) {
         const pack = input[i]
 
@@ -43,9 +31,43 @@ module.exports = async function(/** @type {string} */ outputZip, /** @type {Arra
             const fullPath = path.join(pack, item)
             const info = fs.lstatSync(fullPath)
             if (!info.isFile()) { continue }
+
+            let overrided = false
+            for (let k = 0; k < filesToArchive.length; k++) {
+                if (filesToArchive[k].name === item) {
+                    console.warn(`File overrided: ${filesToArchive[k].filePath} --> ${fullPath}`)
+                    filesToArchive[k].filePath = fullPath
+                    overrided = true
+                    break
+                }
+            }
             
-            archive.file(fullPath, { name: item })
+            if (!overrided) {
+                filesToArchive.push({ filePath: fullPath, name: item })
+            }
         }
+    }
+
+    const archive = archiver('zip', {
+        zlib: { level: 9 }
+    })
+
+    archive.on('warning', function(/** @type {archiver.ArchiverError} */ err) {
+        if (err.code === 'ENOENT') {
+    
+        } else {
+            throw err
+        }
+    })
+    
+    archive.on('error', function(/** @type {archiver.ArchiverError} */ err) {
+        throw err
+    })
+    
+    archive.pipe(output)
+
+    for (const fileToArchive of filesToArchive) {
+        archive.file(fileToArchive.filePath, { name: fileToArchive.name })
     }
 
     let lastProgressTime = performance.now()

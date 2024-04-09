@@ -1,5 +1,6 @@
 const fs = require('fs')
 const path = require('path')
+const { sleep } = require('./utils')
 
 /**
  * @param {string} folderA
@@ -9,9 +10,9 @@ const path = require('path')
  */
 function* compareFolders(folderA, folderB, returnKind) {
     // @ts-ignore
-    const a = fs.readdirSync(folderA, { encoding: 'utf8', recursive: true })
+    const a = (!fs.existsSync(folderA)) ? [ ] : fs.readdirSync(folderA, { encoding: 'utf8', recursive: true })
     // @ts-ignore
-    const b = fs.readdirSync(folderB, { encoding: 'utf8', recursive: true })
+    const b = (!fs.existsSync(folderB)) ? [ ] : fs.readdirSync(folderB, { encoding: 'utf8', recursive: true })
     
     for (const _a of a) {
         const fullPathA = path.join(folderA, _a)
@@ -34,6 +35,8 @@ function* compareFolders(folderA, folderB, returnKind) {
         }
 
         const fullPathB = path.join(folderB, found)
+
+        sleep(2)
 
         const bufferA = fs.readFileSync(fullPathA)
         const bufferB = fs.readFileSync(fullPathB)

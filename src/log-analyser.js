@@ -1,16 +1,22 @@
 const fs = require('fs')
 const colors = require('./colors')
 const path = require('path')
-const constants = require('./constants')
-const PATH_LOG_GENERAL = 'logs/latest.log'
-const PATH_LOGS = path.join(constants.Minecraft, PATH_LOG_GENERAL)
+const relativeLogsPath = 'logs/latest.log'
 
-function clear() {
-    fs.writeFileSync(PATH_LOGS, '', 'utf8')
+/**
+ * @param {string} minecraftPath
+ */
+function clear(minecraftPath) {
+    const logsPath = path.join(minecraftPath, relativeLogsPath)
+    fs.writeFileSync(logsPath, '', 'utf8')
 }
 
-function load() {
-    const contentRaw = fs.readFileSync(PATH_LOGS, 'utf8')
+/**
+ * @param {string} minecraftPath
+ */
+function load(minecraftPath) {
+    const logsPath = path.join(minecraftPath, relativeLogsPath)
+    const contentRaw = fs.readFileSync(logsPath, 'utf8')
     const contentLines = contentRaw.split('\n')
 
     /**
@@ -75,8 +81,12 @@ function load() {
     return parsed
 }
 
-function print() {
-    const parsed = load()
+/**
+ * @param {string} minecraftPath
+ */
+function print(minecraftPath) {
+    const logsPath = path.join(minecraftPath, relativeLogsPath)
+    const parsed = load(minecraftPath)
 
     for (const line of parsed) {
         let out = ''

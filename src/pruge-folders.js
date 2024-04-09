@@ -1,10 +1,13 @@
 const fs = require('fs')
 const path = require('path')
+const { sleep } = require('./utils')
 
 /**
  * @param {string} folder
  */
 function prugeFolder(folder) {
+    sleep(16)
+
     let contents = fs.readdirSync(folder, { withFileTypes: true })
 
     for (const item of contents) {
@@ -18,7 +21,7 @@ function prugeFolder(folder) {
 
     if (contents.length === 0) {
         try {
-            fs.rmdirSync(folder)
+            fs.rmSync(folder, { retryDelay: 100, maxRetries: 5, recursive: true })
             console.warn(`Deleted ${folder}`)
         } catch (error) {
             

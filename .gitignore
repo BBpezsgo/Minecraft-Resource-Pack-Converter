@@ -1,8 +1,7 @@
 /node_modules
-/changes/flattening.js
-/result
-/ids.csv
-/ids.js
-/package-lock.json
+
+/data/changes/flattening.js
+/dat/result
+
 /constants.js
-*.xcf
+/test.js

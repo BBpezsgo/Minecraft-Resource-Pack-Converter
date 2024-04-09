@@ -1,4 +1,4 @@
-/** @type {import('../changes').PackChangesNullable} */
+/** @type {import('../../src/changes').PackChangesNullable} */
 ({
     models: {
         item: {

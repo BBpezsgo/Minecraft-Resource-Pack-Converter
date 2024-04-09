@@ -64,7 +64,7 @@ function applyUV(folderPath, fileName, uv) {
         convertables.push(Path.join(folderPath, fileName + ems + png))
     }
     
-    const uvPath = Path.join(__dirname, 'uvs', uv + '.png')
+    const uvPath = Path.join(utils.paths.uvs, uv + '.png')
     if (!fs.existsSync(uvPath)) {
         console.error(`UV texture "${uv}" not found`)
         return
@@ -113,7 +113,7 @@ function addTint(folderPath, fileName, tint) {
                 img.color([
                     {
                         // @ts-ignore
-                        apply: "mix",
+                        apply: 'mix',
                         params: [ HEX2RGB(tint), 60, ],
                     }
                 ])
@@ -138,7 +138,7 @@ function removeTint(folderPath, fileName, tint) {
  * @param {string?} extension
  * @returns {string[]}
  */
-function ReadDirRecursive(directory, extension = null) {
+function readDirRecursive(directory, extension = null) {
     const result = []
     
     const Do = function(/** @type {string[]} */ ...pathElements) {
@@ -191,7 +191,7 @@ function convertTextures(inputFolder, outputFolder, changes, base, uvs, tints, c
         fs.mkdirSync(outputFolder, { recursive: true })
     }
 
-    const files = ReadDirRecursive(inputFolder, 'png')
+    const files = readDirRecursive(inputFolder, 'png')
 
     for (const currentTexture of files) {
 
