@@ -8,7 +8,12 @@ const combine = require('./src/combine')
 const prugeFolders = require('./src/pruge-folders')
 const sames = require('./src/sames')
 
-module.exports = Object.freeze({
+module.exports = {
+    /**
+     * Convertes the resource pack located at `input` from
+     * version `inputVersion` to `outputVersion` and puts
+     * the result into the `output` directory.
+     */
     convert: packConverter.convert,
     readResourcePack: pack.readResourcePack,
     checker: {
@@ -26,4 +31,4 @@ module.exports = Object.freeze({
         prugeFolder: prugeFolders,
         compareFolders: sames,
     },
-})
+}
