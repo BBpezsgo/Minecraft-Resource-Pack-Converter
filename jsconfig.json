@@ -6,7 +6,9 @@
         "allowImportingTsExtensions": false,
         "checkJs": true,
         "strictNullChecks": true,
-        "strictFunctionTypes": true
+        "strictFunctionTypes": true,
+        "skipLibCheck": true,
+        "skipDefaultLibCheck": true
     },
     "exclude": [
         "node_modules",

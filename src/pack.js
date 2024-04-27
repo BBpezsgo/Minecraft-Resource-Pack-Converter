@@ -79,7 +79,6 @@ const utils = {
  */
 function readResourcePack(packPath) {
     const mcmetaPath = path.join(packPath, 'pack.mcmeta')
-    // if (!fs.existsSync(mcmetaPath)) return null
 
     const mcmetaContents = fs.existsSync(mcmetaPath) ? fs.readFileSync(mcmetaPath, 'utf8') : null
 
@@ -109,10 +108,8 @@ function readResourcePack(packPath) {
 
     const namespaceNames = fs.readdirSync(assetsPath)
 
-    /** @type {{[namespace:string]:Namespace}} */
-    let namespaces = {
-
-    }
+    /** @type {{ [namespace: string]: Namespace }} */
+    const namespaces = { }
 
     for (const namespace of namespaceNames) {
         const namespacePath = path.join(assetsPath, namespace)
@@ -123,77 +120,11 @@ function readResourcePack(packPath) {
             continue
         }
 
-        namespaces[namespace] = readNamespace(namespacePath)
+        namespaces[namespace] = new Namespace(namespacePath)
     }
 
     newResourcePack.Assets = namespaces
     return newResourcePack
-}
-
-/**
- * @param {string} namespacePath
- */
-function readNamespace(namespacePath) {
-    const Asset = new Namespace(namespacePath)
-
-    Asset.gpu_warnlist = utils.readJson(path.join(namespacePath, 'gpu_warnlist.json'))
-
-
-    Asset.sounds = utils.readJson(path.join(namespacePath, 'sounds.json'))
-
-
-    Asset.blockstates = null // Utils.ReadJsons(Path.join(path, 'blockstates'))
-
-    
-    Asset.font = utils.readJsons(path.join(namespacePath, 'font'))
-
-
-    Asset.lang = null // Utils.ReadJsons(Path.join(path, 'lang'))
-
-
-    /*
-    const ModelsPath = Path.join(path, 'models')
-    Asset.models = null
-    if (false && fs.existsSync(ModelsPath)) {
-        Asset.models = {
-            block: Utils.ReadJsons(Path.join(ModelsPath, 'block')),
-            item: Utils.ReadJsons(Path.join(ModelsPath, 'item')),
-        }
-    }
-    */
-
-
-    Asset.particles = utils.readJsons(path.join(namespacePath, 'particles'))
-
-
-    Asset.regional_compliancies = utils.readJson(path.join(namespacePath, 'regional_compliancies.json'))
-
-
-    Asset.texts = null // Utils.ReadTexts(Path.join(path, 'texts'))
-
-
-    /*
-    const TexturesPath = Path.join(path, 'textures')
-    Asset.textures = null
-    if (false && fs.existsSync(TexturesPath)) {
-        Asset.textures = Utils.ReadFilesRecursive(TexturesPath)
-        {
-            block: Utils.ReadFiles(Path.join(TexturesPath, 'block'), '.png'),
-            colormap: Utils.ReadFiles(Path.join(TexturesPath, 'colormap'), '.png'),
-            effect: Utils.ReadFiles(Path.join(TexturesPath, 'effect'), '.png'),
-            environment: Utils.ReadFiles(Path.join(TexturesPath, 'environment'), '.png'),
-            font: Utils.ReadFiles(Path.join(TexturesPath, 'font'), '.png'),
-            item: Utils.ReadFiles(Path.join(TexturesPath, 'item'), '.png'),
-            map: Utils.ReadFiles(Path.join(TexturesPath, 'map'), '.png'),
-            misc: Utils.ReadFiles(Path.join(TexturesPath, 'misc'), '.png'),
-            mob_effect: Utils.ReadFiles(Path.join(TexturesPath, 'mob_effect'), '.png'),
-            painting: Utils.ReadFiles(Path.join(TexturesPath, 'painting'), '.png'),
-            particle: Utils.ReadFiles(Path.join(TexturesPath, 'particle'), '.png'),
-        }
-    }
-    */
-
-    return Asset
 }
 
 class ResourcePack {
@@ -258,68 +189,10 @@ class Namespace {
     Path
 
     /**
-     * @type {any | null}
+     * @param {string} _path
      */
-    gpu_warnlist
-
-    /**
-     * @type {import('./pack-types').Sounds | null}
-     */
-    sounds
-
-    /**
-     * @type {{ [block: string]: any } | null}
-     */
-    blockstates
-
-    /**
-     * @type {{ [font: string]: import('./pack-types').Fonts } | null}
-     */
-    font
-
-    /**
-     * @type {{ [language: string]: { [id: string]: string } } | null}
-     */
-    lang
-    
-    /*models: {
-        block: {
-            [block: string]: any
-        } | null
-        item: {
-            [item: string]: any
-        } | null
-    } | null*/
-
-    /**
-     *  @type {{ [id: string]: any } | null}
-     */
-    particles
-
-    /**
-     * @type {import('./pack-types').RegionalCompliancies | null}
-     */
-    regional_compliancies
-
-    /**
-     * @type {{ [text: string]: string } | null}
-     */
-    texts
-
-    /**
-     * @param {string} path
-     */
-    constructor(path) {
-        this.Path = path
-
-        this.gpu_warnlist = null
-        this.sounds = null
-        this.blockstates = null
-        this.font = null
-        this.lang = null
-        this.particles = null
-        this.regional_compliancies = null
-        this.texts = null
+    constructor(_path) {
+        this.Path = _path
     }
 
     /**

@@ -179,3 +179,30 @@ export type VersionToPackFormatConverter = {
 export type PackFormatToVersionConverter = {
     [version: number]: Version | undefined
 }
+
+export type Font = {  
+    /** A list of providers that are merged onto this font. */  
+    providers: Array<{
+        type: 'bitmap'
+        file: string
+        height?: number
+        ascent: number
+        chars: string[]
+    } | {
+        type: 'legacy_unicode'
+        sizes: string
+        template: string
+    } | {
+        type: 'ttf'
+        file: string
+        shift: [ number, number ]
+        size: number
+        oversample: number
+        skip: string
+    } | {
+        type: 'space'
+        advances: {
+            [char: string]: number
+        }
+    }>
+}

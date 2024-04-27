@@ -5,9 +5,14 @@
     "dependencies": {
         "archiver": "^7.0.1",
         "jimp": "^0.22.10",
-        "node-stream-zip": "^1.15.0"
+        "json5": "^2.2.3",
+        "omggif": "^1.0.10",
+        "three": "0.82.1",
+        "three-software-renderer": "1.2.0"
     },
     "devDependencies": {
-        "@types/archiver": "^6.0.2"
+        "@types/archiver": "^6.0.2",
+        "@types/pngjs": "^6.0.4",
+        "@types/three": "^0.164.0"
     }
 }

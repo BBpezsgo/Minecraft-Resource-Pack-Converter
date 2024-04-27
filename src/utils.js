@@ -177,6 +177,24 @@ const paths = {
     uvs: path.join(__dirname, '..', 'data', 'uvs'),
 }
 
+/**
+ * https://stackoverflow.com/a/1917041
+ * @param {Array<string>} array
+ */
+function sharedStart(...array) {
+    const A = array.concat().sort()
+    const a1 = A[0]
+    const a2 = A[A.length - 1]
+    const L = a1.length
+    let i = 0
+
+    while (i < L && a1.charAt(i) === a2.charAt(i)) {
+        i++
+    }
+
+    return a1.substring(0, i)
+}
+
 module.exports = {
     capitalizeFirst,
     levenshteinDistance,
@@ -189,4 +207,5 @@ module.exports = {
     sleepAsync,
     sleep,
     paths,
+    sharedStart,
 }

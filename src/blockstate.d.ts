@@ -8,21 +8,14 @@ export type Blockstate =
 type BlockstateMultipart = {
     /** Used instead of variants to combine models based on block state attributes. */
     multipart: ConditionalMultipart[]
-    variants: undefined
-    parent: undefined
 }
 
 type BlockstateVariants = {
-    multipart: undefined
     /** Holds the names of all the variants of the block. */
     variants: Map<ConditionState | '', Model | WeightedModel[]>
-    variants: undefined
-    parent: undefined
 }
 
 type BlockstateSimple = {
-    multipart: undefined
-    variants: undefined
     parent: string
     textures: Map<string, string>
 }

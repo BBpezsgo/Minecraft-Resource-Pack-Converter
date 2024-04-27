@@ -279,7 +279,7 @@ function convertModel(relativePath, inputAssetsFolder, outputAssetsFolder, names
         }
     }
 
-    /** @type {import('./model').ModelData} */ 
+    /** @type {import('./model').AnyModel} */ 
     let model
     try { model = JSON.parse(fs.readFileSync(Path.join(inputAssetsFolder, namespace, 'models', relativePath + '.json'), 'utf8')) }
     catch (error) {
@@ -503,7 +503,7 @@ function convertBlockstates(inputAssetsFolder, outputAssetsFolder, namespace, ch
                 continue
             }
             
-            if (content.multipart) {
+            if ('multipart' in content) {
                 for (let i = 0; i < content.multipart.length; i++) {
                     const multipart = content.multipart[i]
                     if (!multipart.apply) debugger
@@ -550,9 +550,9 @@ function convertBlockstates(inputAssetsFolder, outputAssetsFolder, namespace, ch
                         }
                     }
                 }
-            } else if (content.variants) {
+            } else if ('variants' in content) {
 
-            } else if (content.parent) {
+            } else if ('parent' in content) {
                 
             }
         } catch (error) { console.error(error) }
