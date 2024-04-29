@@ -24,7 +24,7 @@ function modelStuff(modelPath, _pack) {
     if (model.parent) {
         const namespace = model.parent.includes(':') ? model.parent.split(':')[0] : 'minecraft'
         const path = model.parent.includes(':') ? model.parent.split(':')[1] : model.parent
-        const parentModelPath = _pack.Assets[namespace].findModel(path + '.json')
+        const parentModelPath = _pack.namespaces[namespace].findModel(path + '.json')
         if (!parentModelPath) { return null }
         const parent = modelStuff(parentModelPath, _pack)
         if (!parent) { return null }
@@ -518,7 +518,7 @@ function render(model, width, height, transformations = null, animationIndex = 0
 
 /**
  * @param {string | undefined} modelPath
- * @param {string} resourcePackPath
+ * @param {string | pack.ResourcePack} resourcePack
  * @param {number} width
  * @param {number} height
  * @param {Transformations | null} transformations
@@ -529,31 +529,28 @@ function render(model, width, height, transformations = null, animationIndex = 0
  *  data: Uint8ClampedArray;
  * } | null}
  */
-module.exports = function(modelPath, resourcePackPath, width, height, transformations = null, frame = 0) {
+module.exports = function(modelPath, resourcePack, width, height, transformations = null, frame = 0) {
     if (!modelPath) { return null }
 
-    const _pack = pack.readResourcePack(resourcePackPath)
+    const maxTextureInheritanceDepth = 10
 
-    if (!_pack) { return null }
+    if (typeof resourcePack === 'string') { resourcePack = new pack.ResourcePack(resourcePack) }
 
-    const model = modelStuff(modelPath, _pack)
+    const model = modelStuff(modelPath, resourcePack)
     if (!model || !model.elements) { return null }
 
     for (const element of model.elements) {
         for (const faceName in element.faces) {
             const face = element.faces[faceName]
             let iterations = 0
-            while (face.texture.startsWith('#') && iterations++ < 10) {
+            while (face.texture.startsWith('#') && iterations++ < maxTextureInheritanceDepth) {
                 if (model.textures && model.textures[face.texture.replace('#', '')]) {
                     face.texture = model.textures[face.texture.replace('#', '')]
                 }
             }
             if (face.texture.startsWith('#')) { continue }
-            if (face.texture.includes(':')) {
-                face.texture = _pack.Assets[face.texture.split(':')[0]].findTexture(face.texture.split(':')[1] + '.png')?.path ?? face.texture
-            } else {
-                face.texture = _pack.Assets['minecraft'].findTexture(face.texture + '.png')?.path ?? face.texture
-            }
+            const namespace = resourcePack.getNamespace(face.texture, 'minecraft')
+            face.texture = namespace?.getFile('textures', face.texture + '.png') ?? face.texture
         }
     }
 

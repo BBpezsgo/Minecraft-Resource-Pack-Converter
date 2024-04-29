@@ -397,13 +397,15 @@ function inverseUVs(uvs) {
     /** @type {import('./basic').Map<string, string>} */
     const result = { }
 
+    const suffix = '-inverted'
+
     for (const key in uvs) {
         /** @type {string} */
         let value = uvs[key]
-        if (value.endsWith('-inverted')) {
-            value = value.substring(0, value.length - '-inverted'.length)
+        if (value.endsWith(suffix)) {
+            value = value.substring(0, value.length - suffix.length)
         } else {
-            value = value + '-inverted'
+            value = value + suffix
         }
         result[key] = value
     }

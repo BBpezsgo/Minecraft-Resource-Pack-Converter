@@ -14,7 +14,7 @@ const Basic = require('./basic')
  */
 function checkFull(versionA, versionB, packA, packB) {
     if (typeof packA === 'string') {
-        const readedPack = Pack.readResourcePack(packA)
+        const readedPack = new Pack.ResourcePack(packA)
         if (!readedPack) {
             throw new Error(`Failed to read resource pack "${packA}"`)
         }
@@ -22,18 +22,18 @@ function checkFull(versionA, versionB, packA, packB) {
     }
 
     if (typeof packB === 'string') {
-        const readedPack = Pack.readResourcePack(packB)
+        const readedPack = new Pack.ResourcePack(packB)
         if (!readedPack) {
             throw new Error(`Failed to read resource pack "${packB}"`)
         }
         packB = readedPack
     }
 
-    const _packA = packA?.Assets?.minecraft
+    const _packA = packA?.namespaces['minecraft']
     if (!_packA) {
         throw new Error(`Default resource pack for version \"${versionA}\" does not exists or invalid`)
     }
-    const _packB = packB?.Assets?.minecraft
+    const _packB = packB?.namespaces['minecraft']
     if (!_packB) {
         throw new Error(`Default resource pack for version \"${versionB}\" does not exists or invalid`)
     }
@@ -78,8 +78,8 @@ function checkFull(versionA, versionB, packA, packB) {
     const blockstatesA = []
     const blockstatesB = []
 
-    if (fs.existsSync(Path.join(_packA.Path, 'blockstates'))) {
-        const _files = fs.readdirSync(Path.join(_packA.Path, 'blockstates'))
+    if (fs.existsSync(Path.join(_packA.path, 'blockstates'))) {
+        const _files = fs.readdirSync(Path.join(_packA.path, 'blockstates'))
         for (const _file of _files) {
             if (!_file.endsWith('.json')) { continue }
             const name = _file.substring(0, _file.length - 5)
@@ -87,8 +87,8 @@ function checkFull(versionA, versionB, packA, packB) {
         }
     }
 
-    if (fs.existsSync(Path.join(_packB.Path, 'blockstates'))) {
-        const _files = fs.readdirSync(Path.join(_packB.Path, 'blockstates'))
+    if (fs.existsSync(Path.join(_packB.path, 'blockstates'))) {
+        const _files = fs.readdirSync(Path.join(_packB.path, 'blockstates'))
         for (const _file of _files) {
             if (!_file.endsWith('.json')) { continue }
             const name = _file.substring(0, _file.length - 5)

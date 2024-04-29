@@ -16,8 +16,6 @@ import renderModel from './src/renderer'
  */
 export function convert(inputVersion: import('./changes').Version, outputVersion: import('./changes').Version, input: string, output: string): void
 
-export function readResourcePack(packPath: string): ResourcePack | null
-
 export namespace checker {
     export function check(versionA: import('./changes').Version, versionB: import('./changes').Version, packA: string | Pack.ResourcePack | null | undefined, packB: string | Pack.ResourcePack | null | undefined): void
     export function checkAll(resourcePacks: { [version: string]: string | Pack.ResourcePack | null | undefined }): void

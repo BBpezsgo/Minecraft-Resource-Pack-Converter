@@ -73,111 +73,80 @@ const utils = {
     },
 }
 
-/**
- * @param {string} packPath
- * @returns {ResourcePack | null}
- */
-function readResourcePack(packPath) {
-    const mcmetaPath = path.join(packPath, 'pack.mcmeta')
-
-    const mcmetaContents = fs.existsSync(mcmetaPath) ? fs.readFileSync(mcmetaPath, 'utf8') : null
-
-    /** @type {import('./pack-types').McMeta | null} */
-    const mcmeta = mcmetaContents ? (function () {
-        try {
-            return JSON.parse(mcmetaContents)
-        } catch (error) {
-            console.warn(error)
-            return null
-        }
-    })() : null
-
-    const newResourcePack = new ResourcePack(packPath, mcmeta)
-    
-    const iconPath = path.join(packPath, 'pack.png')
-    const iconExists = fs.existsSync(iconPath)
-
-    newResourcePack.Icon = iconExists ? iconPath : null
-
-    const assetsPath = path.join(packPath, 'assets')
-    
-    if (!fs.existsSync(assetsPath)) {
-        newResourcePack.Assets = { }
-        return newResourcePack
-    }
-
-    const namespaceNames = fs.readdirSync(assetsPath)
-
-    /** @type {{ [namespace: string]: Namespace }} */
-    const namespaces = { }
-
-    for (const namespace of namespaceNames) {
-        const namespacePath = path.join(assetsPath, namespace)
-
-        const info = fs.statSync(namespacePath)
-
-        if (!info.isDirectory()) {
-            continue
-        }
-
-        namespaces[namespace] = new Namespace(namespacePath)
-    }
-
-    newResourcePack.Assets = namespaces
-    return newResourcePack
-}
-
 class ResourcePack {
     /**
      * @readonly
      * @type {string}
      */
-    Path
+    path
+
+    /**
+     * @readonly
+     * @type {string}
+     */
+    get name() { return path.basename(this.path) }
 
     /**
      * @readonly
      * @type {import('./pack-types').McMeta |null}
      */
-    Mcmeta
+    mcmeta
 
     /**
-     * **This is a path!**
-     * @type {string | null}
-     */
-    Icon
-
-    /**
+     * @readonly
      * @type {{ [namespace: string]: Namespace }}
      */
-    Assets
+    namespaces
     
     /**
-     * @param {string} path
-     * @param {import('./pack-types').McMeta | null} mcmeta
+     * @param {string} packPath
      */
-    constructor(path, mcmeta) {
-        this.Path = path
+    constructor(packPath) {
+        const mcmetaPath = path.join(packPath, 'pack.mcmeta')
+        const mcmetaContents = fs.existsSync(mcmetaPath) ? fs.readFileSync(mcmetaPath, 'utf8') : null
 
-        this.Mcmeta = mcmeta
-        /** @type {string | null} */
-        this.Icon = null
-        this.Assets = { }
+        this.path = packPath
+        this.mcmeta = mcmetaContents ? (function () {
+            try {
+                return JSON.parse(mcmetaContents)
+            } catch (error) {
+                console.warn(error)
+                return null
+            }
+        })() : null
+
+        const namespacesPath = path.join(packPath, 'assets')
+        
+        if (!fs.existsSync(namespacesPath)) {
+            this.namespaces = { }
+            return
+        }
+
+        const namespaceNames = fs.readdirSync(namespacesPath)
+
+        /** @type {{ [namespace: string]: Namespace }} */
+        const namespaces = { }
+
+        for (const namespace of namespaceNames) {
+            const namespacePath = path.join(namespacesPath, namespace)
+            const info = fs.statSync(namespacePath)
+            if (!info.isDirectory()) { continue }
+
+            namespaces[namespace] = new Namespace(namespacePath)
+        }
+
+        this.namespaces = namespaces
     }
 
     /**
      * @param {string} relativePath
-     * @param {string} defaultNamespace
+     * @param {string | null} defaultNamespace
      */
-    findTexture(relativePath, defaultNamespace) {
+    getNamespace(relativePath, defaultNamespace = 'minecraft') {
         let namespace = defaultNamespace
-        if (relativePath.includes(':')) {
-            namespace = relativePath.split(':')[0]
-            relativePath = relativePath.substring(namespace.length + 1)
-        }
-        if (!this.Assets[namespace]) {
-            return null
-        }
-        return this.Assets[namespace].findTexture(relativePath)
+        if (relativePath.includes(':')) { namespace = relativePath.split(':')[0] }
+        if (!namespace) { return null }
+        return this.namespaces[namespace] ?? null
     }
 }
 
@@ -186,41 +155,61 @@ class Namespace {
      * @readonly
      * @type {string}
      */
-    Path
+    path
+
 
     /**
-     * @param {string} _path
+     * @readonly
+     * @type {string}
      */
-    constructor(_path) {
-        this.Path = _path
+    get name() { return path.basename(this.path) }
+
+    /**
+     * @param {string} namespacePath
+     */
+    constructor(namespacePath) {
+        this.path = namespacePath
     }
 
     /**
      * @param {string} relativePath
      */
-    findTexture(relativePath) {
+    toAbsolutePath(relativePath) {
         if (relativePath.includes(':')) {
             relativePath = relativePath.substring(relativePath.split(':')[0].length + 1)
         }
-        const texturePath = path.join(this.Path, 'textures', relativePath)
-        if (!fs.existsSync(texturePath)) {
-            return null
-        }
+        return path.join(this.path, relativePath)
+    }
 
-        if (!fs.statSync(texturePath).isFile()) {
-            return null
-        }
+    /**
+     * @param {...string} relativePath
+     */
+    getFile(...relativePath) {
+        const absolutePath = this.toAbsolutePath(path.join(...relativePath))
+        if (!fs.existsSync(absolutePath)) { return null }
+        if (!fs.statSync(absolutePath).isFile()) { return null }
+        return absolutePath
+    }
 
-        const animationPath = texturePath + '.mcmeta'
+    /**
+     * @param {string} relativePath
+     * @returns {{ path: string; animation: import('./pack-types').Animation | null; } | null}
+     */
+    getTexture(relativePath) {
+        const texturePath = this.toAbsolutePath(path.join('textures', relativePath))
+        if (!fs.existsSync(texturePath)) { return null }
+        if (!fs.statSync(texturePath).isFile()) { return null }
 
+        /** @type {import('./pack-types').Animation | null} */
         let animation = null
 
+        const animationPath = texturePath + '.mcmeta'
         if (fs.existsSync(animationPath)) {
-            const animationData = fs.readFileSync(animationPath, 'utf8')
             try {
+                const animationData = fs.readFileSync(animationPath, 'utf8')
                 animation = JSON.parse(animationData)
             } catch (error) {
-                console.error(error)
+                console.warn(error)
             }
         }
 
@@ -234,32 +223,19 @@ class Namespace {
      * @param {string} relativePath
      */
     getTextures(relativePath) {
-        const texturePath = path.join(this.Path, 'textures', relativePath)
-        if (!fs.existsSync(texturePath)) {
-            return null
-        }
-
-        if (!fs.statSync(texturePath).isDirectory()) {
-            return null
-        }
+        const texturePath = this.toAbsolutePath(path.join('textures', relativePath))
+        if (!fs.existsSync(texturePath)) { return null }
+        if (!fs.statSync(texturePath).isDirectory()) { return null }
 
         const content = fs.readdirSync(texturePath)
 
-        /**
-         * @type {import('./basic').Map<string, string>}
-         */
-        const result = {
-
-        }
+        /** @type {import('./basic').Map<string, string>} */
+        const result = { }
 
         for (const element of content) {
             const elementPath = path.join(texturePath, element)
-            if (!fs.statSync(elementPath).isFile()) {
-                continue
-            }
-            if (path.extname(elementPath) !== '.png') {
-                continue
-            }
+            if (!fs.statSync(elementPath).isFile()) { continue }
+            if (path.extname(elementPath) !== '.png') { continue }
             result[element.replace('.png', '')] = elementPath
         }
 
@@ -270,21 +246,12 @@ class Namespace {
      * @param {string} relativePath
      */
     getTexturesRecursive(relativePath) {
-        const texturePath = path.join(this.Path, 'textures', relativePath)
-        if (!fs.existsSync(texturePath)) {
-            return null
-        }
+        const texturePath = this.toAbsolutePath(path.join('textures', relativePath))
+        if (!fs.existsSync(texturePath)) { return null }
+        if (!fs.statSync(texturePath).isDirectory()) { return null }
 
-        if (!fs.statSync(texturePath).isDirectory()) {
-            return null
-        }
-
-        /**
-         * @type {import('./basic').Map<string, string>}
-         */
-        const result = {
-
-        }
+        /** @type {import('./basic').Map<string, string>} */
+        const result = { }
 
         const Do = function(/** @type {string[]} */ ...pathElements) {
             const content = fs.readdirSync(path.join(texturePath, ...pathElements))
@@ -319,15 +286,9 @@ class Namespace {
      * @param {string} relativePath
      */
     findModel(relativePath) {
-        const modelPath = path.join(this.Path, 'models', relativePath)
-        if (!fs.existsSync(modelPath)) {
-            return null
-        }
-
-        if (!fs.statSync(modelPath).isFile()) {
-            return null
-        }
-
+        const modelPath = this.toAbsolutePath(path.join('models', relativePath))
+        if (!fs.existsSync(modelPath)) { return null }
+        if (!fs.statSync(modelPath).isFile()) { return null }
         return modelPath
     }
 
@@ -335,23 +296,14 @@ class Namespace {
      * @param {string} relativePath
      */
     getModels(relativePath) {
-        const modelPath = path.join(this.Path, 'models', relativePath)
-        if (!fs.existsSync(modelPath)) {
-            return null
-        }
-
-        if (!fs.statSync(modelPath).isDirectory()) {
-            return null
-        }
+        const modelPath = this.toAbsolutePath(path.join('models', relativePath))
+        if (!fs.existsSync(modelPath)) { return null }
+        if (!fs.statSync(modelPath).isDirectory()) { return null }
 
         const content = fs.readdirSync(modelPath)
 
-        /**
-         * @type {import('./basic').Map<string, string>}
-         */
-        const result = {
-
-        }
+        /** @type {import('./basic').Map<string, string>} */
+        const result = { }
 
         for (const element of content) {
             const elementPath = path.join(modelPath, element)
@@ -490,6 +442,5 @@ module.exports = {
     versionToPackFormat,
     packFormatToVersion,
     versions,
-    readResourcePack,
     getDefaultPack,
 }

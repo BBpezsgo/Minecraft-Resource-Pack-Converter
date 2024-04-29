@@ -9,7 +9,6 @@ const renderModel = require('./src/renderer')
 
 module.exports = {
     convert: packConverter.convert,
-    readResourcePack: pack.readResourcePack,
     checker: {
         check: checker.checkFull,
         checkAll: checker.checkFullAll,
