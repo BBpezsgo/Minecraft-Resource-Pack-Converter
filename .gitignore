@@ -2,6 +2,8 @@
 
 /data/changes/flattening.js
 /data/result
+/data/uvs/*-inverted.png
+/data/uvs/*.xcf
 
 /constants.js
 /test.js
