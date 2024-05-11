@@ -1,5 +1,6 @@
 const fs = require('fs')
 const path = require('path')
+const StreamZip = require('node-stream-zip')
 
 const utils = {
     readJson: /** @type {(file: string) => (null | any)} */ (file) => {
@@ -73,69 +74,26 @@ const utils = {
     },
 }
 
-class ResourcePack {
+/**
+ * @abstract
+ * @template {NamespaceAny} [TNamespace = NamespaceAny]
+ */
+class ResourcePackAny {
     /**
      * @readonly
      * @type {string}
+     * @abstract
      */
-    path
-
-    /**
-     * @readonly
-     * @type {string}
-     */
-    get name() { return path.basename(this.path) }
-
-    /**
-     * @readonly
-     * @type {import('./pack-types').McMeta |null}
-     */
-    mcmeta
-
-    /**
-     * @readonly
-     * @type {{ [namespace: string]: Namespace }}
-     */
-    namespaces
+    get name() { debugger; throw 'Not implemented' }
     
     /**
-     * @param {string} packPath
+     * @readonly
+     * @type {{ [namespace: string]: TNamespace }}
      */
-    constructor(packPath) {
-        const mcmetaPath = path.join(packPath, 'pack.mcmeta')
-        const mcmetaContents = fs.existsSync(mcmetaPath) ? fs.readFileSync(mcmetaPath, 'utf8') : null
+    namespaces
 
-        this.path = packPath
-        this.mcmeta = mcmetaContents ? (function () {
-            try {
-                return JSON.parse(mcmetaContents)
-            } catch (error) {
-                console.warn(error)
-                return null
-            }
-        })() : null
-
-        const namespacesPath = path.join(packPath, 'assets')
-        
-        if (!fs.existsSync(namespacesPath)) {
-            this.namespaces = { }
-            return
-        }
-
-        const namespaceNames = fs.readdirSync(namespacesPath)
-
-        /** @type {{ [namespace: string]: Namespace }} */
-        const namespaces = { }
-
-        for (const namespace of namespaceNames) {
-            const namespacePath = path.join(namespacesPath, namespace)
-            const info = fs.statSync(namespacePath)
-            if (!info.isDirectory()) { continue }
-
-            namespaces[namespace] = new Namespace(namespacePath)
-        }
-
-        this.namespaces = namespaces
+    constructor() {
+        this.namespaces = { }
     }
 
     /**
@@ -148,19 +106,279 @@ class ResourcePack {
         if (!namespace) { return null }
         return this.namespaces[namespace] ?? null
     }
+    
+    /**
+     * @param {string} relativePath
+     * @returns {Buffer | null}
+     */
+    getContent(relativePath) {
+        relativePath = relativePath.replace(/\\/g, '/')
+        if (relativePath.startsWith('/')) { relativePath = relativePath.substring(1) }
+        const namespaceName = relativePath.split('/')[1]
+        const namespace = this.namespaces[namespaceName]
+        if (!namespace) { return null }
+        return namespace.getContent(relativePath.replace(`assets/${namespaceName}/`, ''))
+    }
 }
 
-class Namespace {
+/**
+ * @extends {ResourcePackAny<NamespaceFolder>}
+ */
+class ResourcePackFolder extends ResourcePackAny {
     /**
      * @readonly
      * @type {string}
      */
     path
 
+    /**
+     * @readonly
+     * @override
+     * @type {string}
+     */
+    get name() { return path.basename(this.path) }
+
+    /**
+     * @param {string} packPath
+     */
+    constructor(packPath) {
+        super()
+
+        this.path = packPath
+
+        const namespacesPath = path.join(packPath, 'assets')
+        
+        if (!fs.existsSync(namespacesPath)) { return }
+        if (!fs.statSync(namespacesPath).isDirectory()) { return }
+
+        const namespaceNames = fs.readdirSync(namespacesPath)
+
+        for (const namespace of namespaceNames) {
+            const namespacePath = path.join(namespacesPath, namespace)
+            const info = fs.statSync(namespacePath)
+            if (!info.isDirectory()) { continue }
+
+            this.namespaces[namespace] = new NamespaceFolder(namespacePath)
+        }
+    }
+}
+
+/**
+ * @extends {ResourcePackAny<NamespaceZip>}
+ */
+class ResourcePackZip extends ResourcePackAny {
+    /**
+     * @readonly
+     * @type {StreamZip}
+     */
+    zip
+
+    /**
+     * @private
+     * @readonly
+     * @type {string}
+     */
+    path
+
+    /**
+     * @readonly
+     * @override
+     * @type {string}
+     */
+    get name() { return path.basename(this.path) }
+
+    /**
+     * @param {StreamZip} zip
+     * @param {string} zipPath
+     */
+    constructor(zip, zipPath) {
+        super()
+
+        this.zip = zip
+        this.path = zipPath
+
+        const entries = this.zip.entries()
+        
+        for (const entryName in entries) {
+            const entry = entries[entryName]
+            if (!entry.name.startsWith('assets/')) { continue }
+            const namespaceName = entry.name.split('/')[1]
+            if (!this.namespaces[namespaceName]) {
+                this.namespaces[namespaceName] = new NamespaceZip(this.zip, namespaceName)
+            }
+        }
+    }
+    
+    /**
+     * @param {string} file
+     * @returns {Promise<ResourcePackZip>}
+     */
+    static read(file) {
+        return new Promise((resolve, reject) => {
+            const zip = new StreamZip({
+                file: file,
+                storeEntries: true,
+            })
+            zip.on('error', reject)
+            zip.on('ready', () => { resolve(new ResourcePackZip(zip, file)) })
+        })
+    }
+}
+
+/**
+ * @abstract
+ */
+class NamespaceAny {
+    /**
+     * @readonly
+     * @abstract
+     * @type {string}
+     */
+    get name() { debugger; throw 'Not implemented' }
+
+    constructor() {
+        
+    }
+
+    /**
+     * @protected
+     * @abstract
+     * @param {string} relativePath
+     * @returns {string}
+     */
+    toAbsolutePath(relativePath) { debugger; throw 'Not implemented' }
+
+    /**
+     * @abstract
+     * @param {string} relativePath
+     * @returns {Buffer | null}
+     */
+    getContent(relativePath) { debugger; throw 'Not implemented' }
+
+    /**
+     * @abstract
+     * @param {string} relativePath
+     * @returns {Array<string>}
+     */
+    getFiles(relativePath) { debugger; throw 'Not implemented' }
+
+    /**
+     * @abstract
+     * @param {string} relativePath
+     * @returns {import('./basic').Map<string, string> | null}
+     */
+    getFilesRecursive(relativePath) { debugger; throw 'Not implemented' }
+
+    /**
+     * @abstract
+     * @param {string} relativePath
+     * @returns {boolean}
+     */
+    isFileExists(relativePath) { debugger; throw 'Not implemented' }
+
+    /**
+     * @param {string} relativePath
+     * @returns {string | null}
+     */
+    getFile(relativePath) {
+        if (!this.isFileExists(relativePath)) { return null }
+        return this.toAbsolutePath(relativePath)
+    }
+
+    /**
+     * @param {string} relativePath
+     * @returns {{ path: string; animation: import('./pack-types').Animation | null; } | null}
+     */
+    getTexture(relativePath) {
+        relativePath = path.join('textures', relativePath)
+
+        if (!this.isFileExists(relativePath)) { return null }
+        const absolutePath = this.toAbsolutePath(relativePath)
+
+        /** @type {import('./pack-types').Animation | null} */
+        let animation = null
+
+        const animationData = this.getContent(absolutePath + '.mcmeta')?.toString('utf8')
+        if (animationData) {
+            try {
+                animation = JSON.parse(animationData)
+            } catch (error) {
+                console.warn(error)
+            }
+        }
+
+        return {
+            path: absolutePath,
+            animation: animation,
+        }}
+
+    /**
+     * @param {string} relativePath
+     * @returns {import('./basic').Map<string, string>}
+     */
+    getTextures(relativePath) {
+        const files = this.getFiles(path.join('textures', relativePath))
+            .filter(file => {
+                if (!file.endsWith('.png')) { return false }
+                return true
+            })
+        
+        /** @type {import('./basic').Map<string, string>} */
+        const result = { }
+
+        for (const file of files) {
+            result[path.basename(file).replace('.png', '')] = file
+        }
+
+        return result
+    }
+
+    /**
+     * @param {string} relativePath
+     * @returns {string | null}
+     */
+    getModel(relativePath) {
+        relativePath = path.join('models', relativePath)
+        if (!this.isFileExists(relativePath)) { return null }
+        return this.toAbsolutePath(relativePath)
+    }
+
+    /**
+     * @param {string} relativePath
+     * @returns {import('./basic').Map<string, string>}
+     */
+    getModels(relativePath) {
+        const files = this.getFiles(path.join('models', relativePath))
+            .filter(file => {
+                if (!file.endsWith('.json')) { return false }
+                return true
+            })
+
+        /** @type {import('./basic').Map<string, string>} */
+        const result = { }
+
+        for (const file of files) {
+            result[path.basename(file).replace('.json', '')] = file
+        }
+
+        return result
+    }
+}
+
+/**
+ * @extends {NamespaceAny}
+ */
+class NamespaceFolder extends NamespaceAny {
+    /**
+     * @readonly
+     * @type {string}
+     */
+    path
 
     /**
      * @readonly
      * @type {string}
+     * @override
      */
     get name() { return path.basename(this.path) }
 
@@ -168,10 +386,14 @@ class Namespace {
      * @param {string} namespacePath
      */
     constructor(namespacePath) {
+        super()
+
         this.path = namespacePath
     }
 
     /**
+     * @protected
+     * @override
      * @param {string} relativePath
      */
     toAbsolutePath(relativePath) {
@@ -182,84 +404,70 @@ class Namespace {
     }
 
     /**
-     * @param {...string} relativePath
+     * @override
+     * @param {string} relativePath
+     * @returns {Buffer}
      */
-    getFile(...relativePath) {
-        const absolutePath = this.toAbsolutePath(path.join(...relativePath))
-        if (!fs.existsSync(absolutePath)) { return null }
-        if (!fs.statSync(absolutePath).isFile()) { return null }
-        return absolutePath
+    getContent(relativePath) {
+        const absolutePath = this.toAbsolutePath(relativePath)
+        return fs.readFileSync(absolutePath)
     }
 
     /**
+     * @override
      * @param {string} relativePath
-     * @returns {{ path: string; animation: import('./pack-types').Animation | null; } | null}
+     * @returns {Array<string>}
      */
-    getTexture(relativePath) {
-        const texturePath = this.toAbsolutePath(path.join('textures', relativePath))
-        if (!fs.existsSync(texturePath)) { return null }
-        if (!fs.statSync(texturePath).isFile()) { return null }
+    getFiles(relativePath) {
+        const directoryPath = this.toAbsolutePath(relativePath)
+        if (!fs.existsSync(directoryPath)) { return [ ] }
+        if (!fs.statSync(directoryPath).isDirectory()) { return [ ] }
 
-        /** @type {import('./pack-types').Animation | null} */
-        let animation = null
+        const content = fs.readdirSync(directoryPath)
 
-        const animationPath = texturePath + '.mcmeta'
-        if (fs.existsSync(animationPath)) {
-            try {
-                const animationData = fs.readFileSync(animationPath, 'utf8')
-                animation = JSON.parse(animationData)
-            } catch (error) {
-                console.warn(error)
-            }
-        }
-
-        return {
-            path: texturePath,
-            animation: animation,
-        }
-    }
-
-    /**
-     * @param {string} relativePath
-     */
-    getTextures(relativePath) {
-        const texturePath = this.toAbsolutePath(path.join('textures', relativePath))
-        if (!fs.existsSync(texturePath)) { return null }
-        if (!fs.statSync(texturePath).isDirectory()) { return null }
-
-        const content = fs.readdirSync(texturePath)
-
-        /** @type {import('./basic').Map<string, string>} */
-        const result = { }
+        /** @type {Array<string>} */
+        const result = [ ]
 
         for (const element of content) {
-            const elementPath = path.join(texturePath, element)
+            const elementPath = path.join(directoryPath, element)
             if (!fs.statSync(elementPath).isFile()) { continue }
-            if (path.extname(elementPath) !== '.png') { continue }
-            result[element.replace('.png', '')] = elementPath
+            result.push(elementPath)
         }
 
         return result
     }
 
     /**
+     * @override
      * @param {string} relativePath
+     * @returns {boolean}
      */
-    getTexturesRecursive(relativePath) {
-        const texturePath = this.toAbsolutePath(path.join('textures', relativePath))
-        if (!fs.existsSync(texturePath)) { return null }
-        if (!fs.statSync(texturePath).isDirectory()) { return null }
+    isFileExists(relativePath) {
+        const absolutePath = this.toAbsolutePath(relativePath)
+        if (!fs.existsSync(absolutePath)) { return false }
+        if (!fs.statSync(absolutePath).isDirectory()) { return false }
+
+        return true
+    }
+
+    /**
+     * @param {...string} relativePath
+     */
+    getFilesRecursive(...relativePath) {
+        const directoryPath = this.toAbsolutePath(path.join(...relativePath))
+        if (!fs.existsSync(directoryPath)) { return null }
+        if (!fs.statSync(directoryPath).isDirectory()) { return null }
 
         /** @type {import('./basic').Map<string, string>} */
         const result = { }
 
-        const Do = function(/** @type {string[]} */ ...pathElements) {
-            const content = fs.readdirSync(path.join(texturePath, ...pathElements))
+        const _ = function(/** @type {string[]} */ ...pathElements) {
+            const content = fs.readdirSync(path.join(directoryPath, ...pathElements))
 
             for (const element of content) {
-                const elementPath = path.join(texturePath, ...pathElements, element)
+                const elementPath = path.join(directoryPath, ...pathElements, element)
                 if (fs.statSync(elementPath).isDirectory()) {
-                    Do(...pathElements, element)
+                    _(...pathElements, element)
                     continue
                 }
                 if (!fs.statSync(elementPath).isFile()) {
@@ -268,6 +476,7 @@ class Namespace {
                 if (path.extname(elementPath) !== '.png') {
                     continue
                 }
+                debugger
                 let id = ''
                 if (pathElements.length > 0) {
                     id += (pathElements.join('/') + '/')
@@ -276,47 +485,115 @@ class Namespace {
                 result[id] = elementPath
             }
         }
-
-        Do()
+        _()
 
         return result
     }
+}
+
+/**
+ * @extends {NamespaceAny}
+ */
+class NamespaceZip extends NamespaceAny {
+    /**
+     * @readonly
+     * @type {StreamZip}
+     */
+    zip
 
     /**
-     * @param {string} relativePath
+     * @readonly
+     * @type {{ [name: string]: StreamZip.ZipEntry }}
      */
-    findModel(relativePath) {
-        const modelPath = this.toAbsolutePath(path.join('models', relativePath))
-        if (!fs.existsSync(modelPath)) { return null }
-        if (!fs.statSync(modelPath).isFile()) { return null }
-        return modelPath
+    entries
+
+    /**
+     * @private
+     * @readonly
+     * @type {string}
+     */
+
+    /**
+     * @readonly
+     * @override
+     * @type {string}
+     */
+    get name() { return this._name }
+
+    /**
+     * @param {StreamZip} zip
+     * @param {string} name
+     */
+    constructor(zip, name) {
+        super()
+
+        this.zip = zip
+        this._name = name
+        this.entries = { }
+    
+        const entries = this.zip.entries()
+        for (const entryName in entries) {
+            const entry = entries[entryName]
+            if (!entry.name.startsWith(`assets/${this._name}/`)) { continue }
+            this.entries[entryName] = entry
+        }
     }
 
     /**
+     * @protected
+     * @override
      * @param {string} relativePath
      */
-    getModels(relativePath) {
-        const modelPath = this.toAbsolutePath(path.join('models', relativePath))
-        if (!fs.existsSync(modelPath)) { return null }
-        if (!fs.statSync(modelPath).isDirectory()) { return null }
+    toAbsolutePath(relativePath) {
+        if (relativePath.includes(':')) {
+            relativePath = relativePath.substring(relativePath.split(':')[0].length + 1)
+        }
+        return path.join('assets', this._name, relativePath).replace(/\\/g, '/')
+    }
 
-        const content = fs.readdirSync(modelPath)
+    /**
+     * @override
+     * @param {string} relativePath
+     * @returns {Buffer | null}
+     */
+    getContent(relativePath) {
+        relativePath = relativePath.replace(/\\/g, '/')
+        const absolutePath = this.toAbsolutePath(relativePath)
+        if (!this.entries[absolutePath]) { return null }
+        return this.zip.entryDataSync(this.entries[absolutePath])
+    }
 
-        /** @type {import('./basic').Map<string, string>} */
-        const result = { }
+    /**
+     * @override
+     * @param {string} relativePath
+     * @returns {Array<string>}
+     */
+    getFiles(relativePath) {
+        const directoryPath = this.toAbsolutePath(relativePath)
+        
+        /** @type {Array<string>} */
+        const result = [ ]
 
-        for (const element of content) {
-            const elementPath = path.join(modelPath, element)
-            if (!fs.statSync(elementPath).isFile()) {
-                continue
-            }
-            if (path.extname(elementPath) !== '.json') {
-                continue
-            }
-            result[element.replace('.json', '')] = elementPath
+        for (const entryName in this.entries) {
+            const entry = this.entries[entryName]
+            if (!entryName.startsWith(directoryPath)) { continue }
+            if (!entry.isFile) { continue }
+            if (entryName.split('/').length > 5) { continue }
+            result.push(entryName)
         }
 
         return result
+    }
+
+    /**
+     * @override
+     * @param {string} relativePath
+     * @returns {boolean}
+     */
+    isFileExists(relativePath) {
+        const absolutePath = this.toAbsolutePath(relativePath)
+        if (this.entries[absolutePath]) { return true }
+        return false
     }
 }
 
@@ -437,8 +714,12 @@ function getDefaultPack(version) {
 }
 
 module.exports = {
-    ResourcePack,
-    Namespace,
+    ResourcePackAny,
+    ResourcePackFolder,
+    ResourcePackZip,
+    NamespaceAny,
+    NamespaceFolder,
+    NamespaceZip,
     versionToPackFormat,
     packFormatToVersion,
     versions,

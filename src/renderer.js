@@ -1,17 +1,18 @@
 const pack = require('./pack')
-const fs = require('fs')
 const THREE = require("three")
 const SoftwareRenderer = require("three-software-renderer").SoftwareRenderer
 const PNG = require("pngjs").PNG
 
 /**
  * @param {string | undefined} modelPath
- * @param {pack.ResourcePack} _pack
+ * @param {pack.ResourcePackAny} _pack
  */
 function modelStuff(modelPath, _pack) {
     if (!modelPath) { return null }
 
-    const modelData = fs.readFileSync(modelPath, 'utf8')
+    const modelData = _pack.getContent(modelPath)?.toString('utf8')
+    if (!modelData) { return null }
+
     /** @type {import('./model').AnyModel} */
     const model = JSON.parse(modelData)
 
@@ -24,7 +25,7 @@ function modelStuff(modelPath, _pack) {
     if (model.parent) {
         const namespace = model.parent.includes(':') ? model.parent.split(':')[0] : 'minecraft'
         const path = model.parent.includes(':') ? model.parent.split(':')[1] : model.parent
-        const parentModelPath = _pack.namespaces[namespace].findModel(path + '.json')
+        const parentModelPath = _pack.namespaces[namespace].getModel(path + '.json')
         if (!parentModelPath) { return null }
         const parent = modelStuff(parentModelPath, _pack)
         if (!parent) { return null }
@@ -230,13 +231,14 @@ function rotateAboutPoint(obj, point, axis, theta, pointIsWorld = false) {
 /**
  * @template {readonly unknown[]} ArrayType
  * @typedef {ArrayType extends readonly (infer ElementType)[] ? ElementType : never} ArrayElement
+ * @param {pack.ResourcePackAny} resourcePack
  * @param {import('./model').AnyModel} model
  * @param {number} width
  * @param {number} height
  * @param {Transformations | null} transformations
  * @param {number} animationIndex
  */
-function render(model, width, height, transformations = null, animationIndex = 0) {
+function render(resourcePack, model, width, height, transformations = null, animationIndex = 0) {
     if (!model.elements) { return null }
 
     /** @type {{ [filePath: string]: THREE.DataTexture }} */
@@ -247,14 +249,17 @@ function render(model, width, height, transformations = null, animationIndex = 0
         let result = textures[filePath]
 
         if (!result) {
-            if (!fs.existsSync(filePath)) { return null }
+            const buffer = resourcePack.getContent(filePath)
+            if (!buffer) { console.warn(`Texture "${filePath}" does not exists`); return null }
 
             /** @type {PNG} */
-            let textureData = PNG.sync.read(fs.readFileSync(filePath))
+            let textureData = PNG.sync.read(buffer)
 
-            if (fs.existsSync(filePath + '.mcmeta')) {
+            const animationData = resourcePack.getContent(filePath + '.mcmeta')?.toString('utf8')
+
+            if (animationData) {
                 /** @type {import('./pack-types').Animation['animation']} */
-                const animation = JSON.parse(fs.readFileSync(filePath + '.mcmeta', 'utf8'))['animation']
+                const animation = JSON.parse(animationData)['animation']
                 const frameCount = (animation.frames?.length) ?? (textureData.width / textureData.height)
                 const clampedAnimationIndex = animationIndex % frameCount
                 const frame = (animation.frames) ? animation.frames[clampedAnimationIndex] : clampedAnimationIndex
@@ -518,7 +523,7 @@ function render(model, width, height, transformations = null, animationIndex = 0
 
 /**
  * @param {string | undefined} modelPath
- * @param {string | pack.ResourcePack} resourcePack
+ * @param {string | pack.ResourcePackAny} resourcePack
  * @param {number} width
  * @param {number} height
  * @param {Transformations | null} transformations
@@ -534,7 +539,7 @@ module.exports = function(modelPath, resourcePack, width, height, transformation
 
     const maxTextureInheritanceDepth = 10
 
-    if (typeof resourcePack === 'string') { resourcePack = new pack.ResourcePack(resourcePack) }
+    if (typeof resourcePack === 'string') { resourcePack = new pack.ResourcePackFolder(resourcePack) }
 
     const model = modelStuff(modelPath, resourcePack)
     if (!model || !model.elements) { return null }
@@ -550,11 +555,11 @@ module.exports = function(modelPath, resourcePack, width, height, transformation
             }
             if (face.texture.startsWith('#')) { continue }
             const namespace = resourcePack.getNamespace(face.texture, 'minecraft')
-            face.texture = namespace?.getFile('textures', face.texture + '.png') ?? face.texture
+            face.texture = namespace?.getFile(`textures/${face.texture}.png`) ?? face.texture
         }
     }
 
     delete model.textures
 
-    return render(model, width, height, transformations, frame)
+    return render(resourcePack, model, width, height, transformations, frame)
 }

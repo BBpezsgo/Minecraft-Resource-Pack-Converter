@@ -278,6 +278,7 @@ module.exports = async function(/** @type {string} */ outputZip, /** @type {Arra
         throw err
     })
     
+    // @ts-ignore
     archive.pipe(output)
 
     for (const fileToArchive of filesToArchive) {

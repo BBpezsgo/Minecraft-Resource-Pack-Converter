@@ -1,4 +1,3 @@
-
 const Jimp = require('jimp')
 const { clamp } = require('./utils')
 

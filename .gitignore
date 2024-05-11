@@ -5,5 +5,10 @@
 /data/uvs/*-inverted.png
 /data/uvs/*.xcf
 
+/temp
+
 /constants.js
 /test.js
+
+/build
+/build.bat

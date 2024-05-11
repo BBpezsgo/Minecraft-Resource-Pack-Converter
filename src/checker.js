@@ -9,12 +9,12 @@ const Basic = require('./basic')
 /**
  * @param {import('./changes').Version} versionA
  * @param {import('./changes').Version} versionB
- * @param {string | Pack.ResourcePack | null | undefined} packA
- * @param {string | Pack.ResourcePack | null | undefined} packB
+ * @param {string | Pack.ResourcePackFolder | null | undefined} packA
+ * @param {string | Pack.ResourcePackFolder | null | undefined} packB
  */
 function checkFull(versionA, versionB, packA, packB) {
     if (typeof packA === 'string') {
-        const readedPack = new Pack.ResourcePack(packA)
+        const readedPack = new Pack.ResourcePackFolder(packA)
         if (!readedPack) {
             throw new Error(`Failed to read resource pack "${packA}"`)
         }
@@ -22,7 +22,7 @@ function checkFull(versionA, versionB, packA, packB) {
     }
 
     if (typeof packB === 'string') {
-        const readedPack = new Pack.ResourcePack(packB)
+        const readedPack = new Pack.ResourcePackFolder(packB)
         if (!readedPack) {
             throw new Error(`Failed to read resource pack "${packB}"`)
         }
@@ -54,15 +54,15 @@ function checkFull(versionA, versionB, packA, packB) {
     const texturesA = {
         item: _packA.getTextures(formatA < 4 ? 'items' : 'item') ?? {},
         block: _packA.getTextures(formatA < 4 ? 'blocks' : 'block') ?? {},
-        entity: _packA.getTexturesRecursive('entity') ?? {},
-        gui: _packA.getTexturesRecursive('gui') ?? {},
+        entity: _packA.getFilesRecursive('textures', 'entity') ?? {},
+        gui: _packA.getFilesRecursive('textures', 'gui') ?? {},
     }
 
     const texturesB = {
         item: _packB.getTextures(formatB < 4 ? 'items' : 'item') ?? {},
         block: _packB.getTextures(formatB < 4 ? 'blocks' : 'block') ?? {},
-        entity: _packB.getTexturesRecursive('entity') ?? {},
-        gui: _packB.getTexturesRecursive('gui') ?? {},
+        entity: _packB.getFilesRecursive('textures', 'entity') ?? {},
+        gui: _packB.getFilesRecursive('textures', 'gui') ?? {},
     }
 
     const modelsA = {
@@ -280,7 +280,7 @@ function checkFull(versionA, versionB, packA, packB) {
 }
 
 /**
- * @param {{ [version in Changes.Version]: string | Pack.ResourcePack | null | undefined }} resourcePacks 
+ * @param {{ [version in Changes.Version]: string | Pack.ResourcePackFolder | null | undefined }} resourcePacks 
  */
 function checkFullAll(resourcePacks) {
     /** @ts-ignore @type {Changes.Version[]} */
