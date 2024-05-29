@@ -246,6 +246,11 @@ function render(resourcePack, model, width, height, transformations = null, anim
 
     /** @returns {THREE.DataTexture | null} */
     const getTexture = (/** @type {string} */ filePath) => {
+        if (!filePath.endsWith('.png')) {
+            filePath += '.png'
+        }
+        filePath = pack.ResourcePackAny.fullyQualify(filePath, 'textures')
+        
         let result = textures[filePath]
 
         if (!result) {

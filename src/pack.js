@@ -10,7 +10,7 @@ const utils = {
     readJsons: /** @type {(folder: string) => (null | { [id: string]: any })} */ (folder) => {
         if (!fs.existsSync(folder)) return null
         const files = fs.readdirSync(folder)
-        const result = { }
+        const result = {}
         for (const file of files) {
             if (typeof file !== 'string') continue
 
@@ -26,7 +26,7 @@ const utils = {
     readTexts: /** @type {(folder: string) => (null | { [id: string]: string })} */ (folder) => {
         if (!fs.existsSync(folder)) return null
         const files = fs.readdirSync(folder)
-        const result = { }
+        const result = {}
         for (const file of files) {
             if (typeof file !== 'string') continue
 
@@ -43,7 +43,7 @@ const utils = {
     readFiles: /** @type {(folder: string, extension: string = null) => (null | { [file: string]: string })} */ (folder, extension = undefined) => {
         if (!fs.existsSync(folder)) return null
         const files = fs.readdirSync(folder)
-        const result = { }
+        const result = {}
         for (const file of files) {
             if (typeof file !== 'string') continue
             if (extension && path.extname(file) !== extension) continue
@@ -56,7 +56,7 @@ const utils = {
         if (!fs.existsSync(folder)) return null
         const files = fs.readdirSync(folder)
         /** @type {import('./pack-types').Directory} */
-        const result = { }
+        const result = {}
         for (const file of files) {
             if (typeof file !== 'string') continue
             const info = fs.statSync(path.join(folder, file))
@@ -85,7 +85,7 @@ class ResourcePackAny {
      * @abstract
      */
     get name() { debugger; throw 'Not implemented' }
-    
+
     /**
      * @readonly
      * @type {{ [namespace: string]: TNamespace }}
@@ -93,7 +93,7 @@ class ResourcePackAny {
     namespaces
 
     constructor() {
-        this.namespaces = { }
+        this.namespaces = {}
     }
 
     /**
@@ -106,7 +106,21 @@ class ResourcePackAny {
         if (!namespace) { return null }
         return this.namespaces[namespace] ?? null
     }
-    
+
+    /**
+     * @param {string} relativePath
+     * @param {string} folderName
+     */
+    static fullyQualify(relativePath, folderName) {
+        if (!relativePath.includes(':')) { return relativePath }
+
+        const namespaceName = relativePath.split(':')[0]
+        relativePath = relativePath.replace(namespaceName + ':', '')
+        if (relativePath.startsWith('/')) { relativePath = relativePath.substring(1) }
+        relativePath = `assets/${namespaceName}/${folderName}/${relativePath}`
+        return relativePath
+    }
+
     /**
      * @param {string} relativePath
      * @returns {Buffer | null}
@@ -114,6 +128,9 @@ class ResourcePackAny {
     getContent(relativePath) {
         relativePath = relativePath.replace(/\\/g, '/')
         if (relativePath.startsWith('/')) { relativePath = relativePath.substring(1) }
+
+        if (relativePath.includes(':')) { return null }
+
         const namespaceName = relativePath.split('/')[1]
         const namespace = this.namespaces[namespaceName]
         if (!namespace) { return null }
@@ -147,7 +164,7 @@ class ResourcePackFolder extends ResourcePackAny {
         this.path = packPath
 
         const namespacesPath = path.join(packPath, 'assets')
-        
+
         if (!fs.existsSync(namespacesPath)) { return }
         if (!fs.statSync(namespacesPath).isDirectory()) { return }
 
@@ -198,7 +215,7 @@ class ResourcePackZip extends ResourcePackAny {
         this.path = zipPath
 
         const entries = this.zip.entries()
-        
+
         for (const entryName in entries) {
             const entry = entries[entryName]
             if (!entry.name.startsWith('assets/')) { continue }
@@ -208,7 +225,7 @@ class ResourcePackZip extends ResourcePackAny {
             }
         }
     }
-    
+
     /**
      * @param {string} file
      * @returns {Promise<ResourcePackZip>}
@@ -237,7 +254,7 @@ class NamespaceAny {
     get name() { debugger; throw 'Not implemented' }
 
     constructor() {
-        
+
     }
 
     /**
@@ -310,7 +327,8 @@ class NamespaceAny {
         return {
             path: absolutePath,
             animation: animation,
-        }}
+        }
+    }
 
     /**
      * @param {string} relativePath
@@ -322,9 +340,9 @@ class NamespaceAny {
                 if (!file.endsWith('.png')) { return false }
                 return true
             })
-        
+
         /** @type {import('./basic').Map<string, string>} */
-        const result = { }
+        const result = {}
 
         for (const file of files) {
             result[path.basename(file).replace('.png', '')] = file
@@ -355,7 +373,7 @@ class NamespaceAny {
             })
 
         /** @type {import('./basic').Map<string, string>} */
-        const result = { }
+        const result = {}
 
         for (const file of files) {
             result[path.basename(file).replace('.json', '')] = file
@@ -420,13 +438,13 @@ class NamespaceFolder extends NamespaceAny {
      */
     getFiles(relativePath) {
         const directoryPath = this.toAbsolutePath(relativePath)
-        if (!fs.existsSync(directoryPath)) { return [ ] }
-        if (!fs.statSync(directoryPath).isDirectory()) { return [ ] }
+        if (!fs.existsSync(directoryPath)) { return [] }
+        if (!fs.statSync(directoryPath).isDirectory()) { return [] }
 
         const content = fs.readdirSync(directoryPath)
 
         /** @type {Array<string>} */
-        const result = [ ]
+        const result = []
 
         for (const element of content) {
             const elementPath = path.join(directoryPath, element)
@@ -459,9 +477,9 @@ class NamespaceFolder extends NamespaceAny {
         if (!fs.statSync(directoryPath).isDirectory()) { return null }
 
         /** @type {import('./basic').Map<string, string>} */
-        const result = { }
+        const result = {}
 
-        const _ = function(/** @type {string[]} */ ...pathElements) {
+        const _ = function (/** @type {string[]} */ ...pathElements) {
             const content = fs.readdirSync(path.join(directoryPath, ...pathElements))
 
             for (const element of content) {
@@ -512,6 +530,7 @@ class NamespaceZip extends NamespaceAny {
      * @readonly
      * @type {string}
      */
+    _name
 
     /**
      * @readonly
@@ -529,8 +548,8 @@ class NamespaceZip extends NamespaceAny {
 
         this.zip = zip
         this._name = name
-        this.entries = { }
-    
+        this.entries = {}
+
         const entries = this.zip.entries()
         for (const entryName in entries) {
             const entry = entries[entryName]
@@ -570,9 +589,9 @@ class NamespaceZip extends NamespaceAny {
      */
     getFiles(relativePath) {
         const directoryPath = this.toAbsolutePath(relativePath)
-        
+
         /** @type {Array<string>} */
-        const result = [ ]
+        const result = []
 
         for (const entryName in this.entries) {
             const entry = this.entries[entryName]
@@ -639,7 +658,7 @@ const packFormatToVersion = {
     15: '1.20',
 }
 
-/** @type {import('./changes').Version[]} */
+/** @type {Array<import('./changes').Version>} */
 const versions = [
     '1.6',
     '1.7',
@@ -679,7 +698,7 @@ function getDefaultPack(version) {
         }
         base.models.block[i] = evaulated
     }
-    
+
     for (let i = base.models.item.length; i >= 0; i--) {
         const evaulated = Changes.evaluate(changes.models.item, base.models.item[i])
         if (evaulated === undefined) continue
@@ -689,7 +708,7 @@ function getDefaultPack(version) {
         }
         base.models.item[i] = evaulated
     }
-    
+
     for (let i = base.textures.block.length; i >= 0; i--) {
         const evaulated = Changes.evaluate(changes.textures.block, base.textures.block[i])
         if (evaulated === undefined) continue
@@ -699,7 +718,7 @@ function getDefaultPack(version) {
         }
         base.textures.block[i] = evaulated
     }
-    
+
     for (let i = base.textures.item.length; i >= 0; i--) {
         const evaulated = Changes.evaluate(changes.textures.item, base.textures.item[i])
         if (evaulated === undefined) continue
