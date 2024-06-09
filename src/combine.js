@@ -14,46 +14,78 @@ module.exports = async function(/** @type {string} */ outputZip, /** @type {Arra
      */
     const filesToArchive = [ ]
 
+    /**
+     * @param {string} filePath
+     */
+    function willFileExists(filePath) {
+        filePath = filePath.replace(/\//g, '\\')
+        for (const fileToArchive of filesToArchive) {
+            if (fileToArchive.name.replace(/\//g, '\\') === filePath) {
+                return true
+            }
+        }
+        return false
+    }
+
+    /**
+     * @param {number} length
+     */
+    function nonceFilename(length) {
+        // 'a-z0-9/._-'
+        const validCharacters = 'abcdefghijklmnopqrstuvwxyz0123456789._-'
+        let result = ''
+        for (let i = 0; i < length; i++) {
+            const randomI = crypto.randomInt(validCharacters.length)
+            if (!validCharacters[randomI]) {
+                throw new Error('What?')
+            }
+            result += validCharacters[randomI]
+        }
+        return result
+    }
+
     const sharedStart = utils.sharedStart(...input)
 
+    console.log('[Combine]: Combining files ...')
     for (const pack of input) {
         if (!fs.existsSync(pack)) {
-            console.warn(`Does not exists: ${pack}`)
+            console.warn(`[Combine]: Pack does not exists: "${pack}"`)
             continue
         }
 
-        if (!fs.lstatSync(pack).isDirectory()) { continue }
+        if (!fs.lstatSync(pack).isDirectory()) {
+            console.warn(`[Combine]: Pack isn't a directory: "${pack}"`)
+            continue
+        }
 
         // @ts-ignore
         const content = fs.readdirSync(pack, { encoding: 'utf8', recursive: true })
 
-        for (const item of content) {
-            const fullPath = path.join(pack, item)
+        for (const fileName of content) {
+            const fullPath = path.join(pack, fileName)
             if (!fs.lstatSync(fullPath).isFile()) { continue }
+            if (fileName === 'credits.txt') { continue }
 
             let overrided = false
-            for (const fileToArchive of filesToArchive) {
-                if (fileToArchive.name !== item) { continue }
-                if ('filePath' in fileToArchive) {
-                    console.warn(`File overrided: "${fileToArchive.filePath.replace(sharedStart, '')}" --> "${fullPath.replace(sharedStart, '')}"`)
-                    fileToArchive.filePath = fullPath
-                } else if ('data' in fileToArchive) {
-                    console.warn(`File overrided: "${fileToArchive.name.replace(sharedStart, '')}" --> "${item}"`)
-                    fileToArchive.data = fs.readFileSync(fullPath, 'utf8')
-                }
+            for (let i = 0; i < filesToArchive.length; i++) {
+                const fileToArchive = filesToArchive[i]
+                if (fileToArchive.name !== fileName) { continue }
+
+                filesToArchive[i] = { name: fileName, filePath: fullPath }
                 overrided = true
+
                 break
             }
             
             if (!overrided) {
-                filesToArchive.push({ name: item, filePath: fullPath })
+                filesToArchive.push({ name: fileName, filePath: fullPath })
             }
         }
     }
 
     {
         /**
-         * @type {{ [block: string]: import('./blockstate').Blockstate }}
+         * @type {import('./basic').Map<string, import('./blockstate').Blockstate>}
          */
         const blockstates = { }
 
@@ -62,81 +94,99 @@ module.exports = async function(/** @type {string} */ outputZip, /** @type {Arra
             if (!fs.existsSync(blockstatesPath)) { continue }
             if (!fs.lstatSync(blockstatesPath).isDirectory()) { continue }
 
-            // @ts-ignore
             const content = fs.readdirSync(blockstatesPath, { encoding: 'utf8', recursive: false })
 
             for (const fileName of content) {
-                const fullPath = path.join(pack, 'assets', 'minecraft', 'blockstates', fileName)
+                const fullPath = path.join(blockstatesPath, fileName)
                 if (!fs.lstatSync(fullPath).isFile()) { continue }
-                if (!fileName.endsWith('.json')) { continue }
+                if (!fileName.endsWith('.json')) {
+                    console.warn(`[Combine]: Blockstate isn't a json file: "${fullPath}"`)
+                    continue
+                }
 
-                const blockstateName = fileName.replace('.json', '')
-                const rawBlockstate = fs.readFileSync(fullPath, 'utf8')
+                const blockstateName = fileName.substring(0, fileName.length - '.json'.length)
+
                 /** @type {import('./blockstate').Blockstate} */
-                const blockstate = JSON5.parse(rawBlockstate)
+                const blockstate1 = JSON5.parse(fs.readFileSync(fullPath, 'utf8'))
+
+                if (!(blockstateName in blockstates)) {
+                    blockstates[blockstateName] = blockstate1
+                    continue
+                }
                 
-                if (blockstateName in blockstates) {
-                    const oldBlockstate = blockstates[blockstateName]
-                    if ('variants' in oldBlockstate &&
-                        'variants' in blockstate) {
-                        /** @type {import('./blockstate').Blockstate} */
-                        let newBlockstate = {
-                            variants: {
-                                ...oldBlockstate.variants,
-                            }
-                        }
-                        for (const newVariantName in blockstate.variants) {
-                            let newVariant = blockstate.variants[newVariantName]
-                            if (!Array.isArray(newVariant)) { newVariant = [ newVariant ] }
-                            for (let i = 0; i < newVariant.length; i++) {
-                                const item = newVariant[i]
-                                const namespace = item.model.includes(':') ? item.model.split(':')[0] : 'minecraft'
-                                const _path = item.model.includes(':') ? item.model.split(':')[1] : item.model
-                                const newModelFullPath = path.join(pack, 'assets', namespace, 'models', _path)
-                                if (!fs.existsSync(newModelFullPath + '.json')) {
-                                    console.warn(`Model not found: "${(newModelFullPath + '.json').replace(sharedStart, '')}"`)
-                                    continue
-                                }
-                                const suffix = '_' + crypto.randomBytes(16).toString('base64url')
-                                item.model += suffix
-                                filesToArchive.push({
-                                    name: path.join('assets', namespace, 'models', _path + suffix + '.json'),
-                                    data: fs.readFileSync(newModelFullPath + '.json', 'utf8'),
-                                })
-                            }
-                            if (newVariantName in newBlockstate.variants) {
-                                if (Array.isArray(newBlockstate.variants[newVariantName])) {
-                                    // @ts-ignore
-                                    newBlockstate.variants[newVariantName].push(...newVariant)
+                const blockstate2 = blockstates[blockstateName]
+                if ('variants' in blockstate2 &&
+                    'variants' in blockstate1) {
+                    /** @type {import('./blockstate').BlockstateVariants} */
+                    const newBlockstate = JSON.parse(JSON.stringify(blockstate2))
+                    for (const newVariantName in blockstate1.variants) {
+                        let newVariant = blockstate1.variants[newVariantName]
+                        if (!Array.isArray(newVariant)) { newVariant = [ newVariant ] }
+                        for (const newVariantItem of newVariant) {
+                            const namespace = newVariantItem.model.includes(':') ? newVariantItem.model.split(':')[0] : 'minecraft'
+                            const _path = newVariantItem.model.includes(':') ? newVariantItem.model.split(':')[1] : newVariantItem.model
+                            const newModelFullPath = path.join(pack, 'assets', namespace, 'models', _path)
+                            if (!fs.existsSync(newModelFullPath + '.json')) {
+                                if (willFileExists(path.join('assets', namespace, 'models', _path + '.json'))) {
+                                    console.log(`[Combine]: Model not found: "${(newModelFullPath + '.json').replace(sharedStart, '')}"`)
                                 } else {
-                                    newBlockstate.variants[newVariantName] = [
-                                        // @ts-ignore
-                                        newBlockstate.variants[newVariantName],
-                                        ...newVariant,
-                                    ]
+                                    console.warn(`[Combine]: Model not found: "${(newModelFullPath + '.json').replace(sharedStart, '')}"`)
                                 }
-                            } else {
-                                newBlockstate.variants[newVariantName] = newVariant
+                                continue
                             }
+                            const suffix = '_' + nonceFilename(16)
+                            newVariantItem.model += suffix
+                            filesToArchive.push({
+                                name: path.join('assets', namespace, 'models', _path + suffix + '.json'),
+                                data: fs.readFileSync(newModelFullPath + '.json', 'utf8'),
+                            })
                         }
-                        blockstates[blockstateName] = newBlockstate
-                    } else {
-                        console.warn(`:(`)
+                        if (newVariantName in newBlockstate.variants) {
+                            const newVariants = newBlockstate.variants[newVariantName]
+                            if (Array.isArray(newVariants)) {
+                                newVariants.push(...newVariant)
+                            } else {
+                                newBlockstate.variants[newVariantName] = [
+                                    newVariants,
+                                    ...newVariant,
+                                ]
+                                // @ts-ignore
+                                newBlockstate.__isCombined = true
+                            }
+                        } else {
+                            newBlockstate.variants[newVariantName] = newVariant
+                        }
                     }
+                    blockstates[blockstateName] = newBlockstate
                 } else {
-                    blockstates[blockstateName] = blockstate
+                    console.warn(`[Combine]: :(`)
                 }
             }
         }
 
         for (const name in blockstates) {
-            const item = path.join('assets', 'minecraft', 'blockstates', name + '.json')
+            const blockstateFullPath = path.join('assets', 'minecraft', 'blockstates', name + '.json')
+            const blockstate = blockstates[name]
             let overrided = false
-            const data = JSON.stringify(blockstates[name], null, ' ')
+            const data = JSON.stringify(blockstate, null, ' ')
+
+            if ('variants' in blockstate) {
+                for (const _variants of Object.values(blockstate.variants)) {
+                    const variants = Array.isArray(_variants) ? _variants : [ _variants ]
+                    for (const model of variants) {
+                        const namespace = model.model.includes(':') ? model.model.split(':')[0] : 'minecraft'
+                        const _path = model.model.includes(':') ? model.model.split(':')[1] : model.model
+                        const modelPath = path.join('assets', namespace, 'models', _path) + '.json'
+                        if (!willFileExists(modelPath)) {
+                            console.warn(`[Combine]: Model will not exists: "${modelPath}"`)
+                        }
+                    }
+                }
+            }
 
             for (let i = 0; i < filesToArchive.length; i++) {
                 let fileToArchive = filesToArchive[i]
-                if (fileToArchive.name !== item) { continue }
+                if (fileToArchive.name !== blockstateFullPath) { continue }
                 filesToArchive[i] = {
                     name: fileToArchive.name,
                     data: data,
@@ -146,7 +196,7 @@ module.exports = async function(/** @type {string} */ outputZip, /** @type {Arra
             }
             
             if (!overrided) {
-                filesToArchive.push({ name: item, data: data })
+                filesToArchive.push({ name: blockstateFullPath, data: data })
             }
         }
     }
@@ -162,7 +212,6 @@ module.exports = async function(/** @type {string} */ outputZip, /** @type {Arra
             if (!fs.existsSync(langPath)) { continue }
             if (!fs.lstatSync(langPath).isDirectory()) { continue }
 
-            // @ts-ignore
             const content = fs.readdirSync(langPath, { encoding: 'utf8', recursive: false })
 
             for (const fileName of content) {
@@ -219,7 +268,6 @@ module.exports = async function(/** @type {string} */ outputZip, /** @type {Arra
             if (!fs.existsSync(fontsPath)) { continue }
             if (!fs.lstatSync(fontsPath).isDirectory()) { continue }
 
-            // @ts-ignore
             const content = fs.readdirSync(fontsPath, { encoding: 'utf8', recursive: false })
 
             for (const fileName of content) {
@@ -278,7 +326,6 @@ module.exports = async function(/** @type {string} */ outputZip, /** @type {Arra
         throw err
     })
     
-    // @ts-ignore
     archive.pipe(output)
 
     for (const fileToArchive of filesToArchive) {
@@ -300,10 +347,10 @@ module.exports = async function(/** @type {string} */ outputZip, /** @type {Arra
         const now = performance.now()
         if (now - lastProgressTime < 5000) { return }
         lastProgressTime = now
-        console.log(Progress.getPercentString(progress.entries.processed, progress.entries.total))
+        console.log(`[Archiving]: ${Progress.getPercentString(progress.entries.processed, progress.entries.total)}`)
     })
     archive.on('close', () => {
-        console.log(`100.00 %`)
+        console.log(`[Archiving]: 100.00 %`)
     })
 
     await archive.finalize()
