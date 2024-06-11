@@ -5,9 +5,11 @@ const Progress = require('./progress')
 const utils = require('./utils')
 const crypto = require('crypto')
 const JSON5 = require('json5')
+const Properties = require('./properties-file')
 
 module.exports = async function(/** @type {string} */ outputZip, /** @type {Array<string>} */ ...input) {
-    const output = fs.createWriteStream(outputZip)
+    const compress = true
+    const removeCredits = true
     
     /**
      * @type {Array<{ name: string; } & ({ filePath: string; } | { data: string; })>}
@@ -138,7 +140,9 @@ module.exports = async function(/** @type {string} */ outputZip, /** @type {Arra
                             newVariantItem.model += suffix
                             filesToArchive.push({
                                 name: path.join('assets', namespace, 'models', _path + suffix + '.json'),
-                                data: fs.readFileSync(newModelFullPath + '.json', 'utf8'),
+                                data: compress ?
+                                    JSON.stringify(JSON5.parse(fs.readFileSync(newModelFullPath + '.json', 'utf8'))) :
+                                    fs.readFileSync(newModelFullPath + '.json', 'utf8'),
                             })
                         }
                         if (newVariantName in newBlockstate.variants) {
@@ -326,19 +330,30 @@ module.exports = async function(/** @type {string} */ outputZip, /** @type {Arra
         throw err
     })
     
+    const output = fs.createWriteStream(outputZip)
     archive.pipe(output)
 
     for (const fileToArchive of filesToArchive) {
         if ('filePath' in fileToArchive) {
-            if (fileToArchive.filePath.endsWith('.json')) {
-                archive.append(JSON.stringify(JSON5.parse(fs.readFileSync(fileToArchive.filePath, 'utf8'))), { name: fileToArchive.name })
+            if (compress && fileToArchive.filePath.endsWith('.json')) {
+                const content = fs.readFileSync(fileToArchive.filePath, 'utf8')
+                const parsedJson = JSON5.parse(content)
+                if (removeCredits) {
+                    if ('credit' in parsedJson) { delete parsedJson.credit }
+                    if ('_comment' in parsedJson) { delete parsedJson._comment }
+                }
+                const stringifiedJson = JSON.stringify(parsedJson)
+                archive.append(stringifiedJson, { name: fileToArchive.name })
+            } else if (compress && fileToArchive.filePath.endsWith('.properties')) {
+                const content = fs.readFileSync(fileToArchive.filePath, 'utf8')
+                const parsedProperties = Properties.parse(content)
+                const stringifiedProperties = Properties.stringify(parsedProperties)
+                archive.append(stringifiedProperties, { name: fileToArchive.name })
             } else {
                 archive.file(fileToArchive.filePath, { name: fileToArchive.name })
             }
-        } else if ('data' in fileToArchive) {
-            archive.append(fileToArchive.data, { name: fileToArchive.name })
         } else {
-            throw 'bruh'
+            archive.append(fileToArchive.data, { name: fileToArchive.name })
         }
     }
 
