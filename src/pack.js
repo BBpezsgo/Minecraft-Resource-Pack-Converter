@@ -129,7 +129,12 @@ class ResourcePackAny {
         relativePath = relativePath.replace(/\\/g, '/')
         if (relativePath.startsWith('/')) { relativePath = relativePath.substring(1) }
 
-        if (relativePath.includes(':')) { return null }
+        if (relativePath.includes(':')) {
+            const namespaceName = relativePath.split(':')[0]
+            const namespace = this.namespaces[namespaceName]
+            if (!namespace) { return null }
+            return namespace.getContent(relativePath.split(':')[1])
+        }
 
         const namespaceName = relativePath.split('/')[1]
         const namespace = this.namespaces[namespaceName]

@@ -6,8 +6,18 @@ const utils = require('./utils')
 const crypto = require('crypto')
 const JSON5 = require('json5')
 const Properties = require('./properties-file')
+const { ResourcePackAny } = require('./pack')
 
-module.exports = async function(/** @type {string} */ outputZip, /** @type {Array<string>} */ ...input) {
+/**
+ * @typedef {{
+ *   outputZip: string
+ *   input: Array<string>
+ *   compression?: number
+ *   defaultPack?: ResourcePackAny
+ * }} CombineSettings
+ */
+
+module.exports = async function(/** @type {CombineSettings} */ settings) {
     const compress = true
     const removeCredits = true
     
@@ -25,6 +35,9 @@ module.exports = async function(/** @type {string} */ outputZip, /** @type {Arra
             if (fileToArchive.name.replace(/\//g, '\\') === filePath) {
                 return true
             }
+        }
+        if (settings.defaultPack && settings.defaultPack.getContent(filePath)) {
+            return true
         }
         return false
     }
@@ -46,10 +59,10 @@ module.exports = async function(/** @type {string} */ outputZip, /** @type {Arra
         return result
     }
 
-    const sharedStart = utils.sharedStart(...input)
+    const sharedStart = utils.sharedStart(...settings.input)
 
     console.log('[Combine]: Combining files ...')
-    for (const pack of input) {
+    for (const pack of settings.input) {
         if (!fs.existsSync(pack)) {
             console.warn(`[Combine]: Pack does not exists: "${pack}"`)
             continue
@@ -91,7 +104,7 @@ module.exports = async function(/** @type {string} */ outputZip, /** @type {Arra
          */
         const blockstates = { }
 
-        for (const pack of input) {
+        for (const pack of settings.input) {
             const blockstatesPath = path.join(pack, 'assets', 'minecraft', 'blockstates')
             if (!fs.existsSync(blockstatesPath)) { continue }
             if (!fs.lstatSync(blockstatesPath).isDirectory()) { continue }
@@ -130,7 +143,7 @@ module.exports = async function(/** @type {string} */ outputZip, /** @type {Arra
                             const newModelFullPath = path.join(pack, 'assets', namespace, 'models', _path)
                             if (!fs.existsSync(newModelFullPath + '.json')) {
                                 if (willFileExists(path.join('assets', namespace, 'models', _path + '.json'))) {
-                                    console.log(`[Combine]: Model not found: "${(newModelFullPath + '.json').replace(sharedStart, '')}"`)
+                                    // console.log(`[Combine]: Model not found: "${(newModelFullPath + '.json').replace(sharedStart, '')}"`)
                                 } else {
                                     console.warn(`[Combine]: Model not found: "${(newModelFullPath + '.json').replace(sharedStart, '')}"`)
                                 }
@@ -211,7 +224,7 @@ module.exports = async function(/** @type {string} */ outputZip, /** @type {Arra
          */
         const langs = { }
 
-        for (const pack of input) {
+        for (const pack of settings.input) {
             const langPath = path.join(pack, 'assets', 'minecraft', 'lang')
             if (!fs.existsSync(langPath)) { continue }
             if (!fs.lstatSync(langPath).isDirectory()) { continue }
@@ -267,7 +280,7 @@ module.exports = async function(/** @type {string} */ outputZip, /** @type {Arra
          */
         const fonts = { }
 
-        for (const pack of input) {
+        for (const pack of settings.input) {
             const fontsPath = path.join(pack, 'assets', 'minecraft', 'font')
             if (!fs.existsSync(fontsPath)) { continue }
             if (!fs.lstatSync(fontsPath).isDirectory()) { continue }
@@ -315,7 +328,8 @@ module.exports = async function(/** @type {string} */ outputZip, /** @type {Arra
     }
 
     const archive = archiver('zip', {
-        zlib: { level: 0 }
+        zlib: { level: settings.compression ?? 0 },
+        comment: 'Minecraft Resource Pack',
     })
 
     archive.on('warning', function(/** @type {archiver.ArchiverError} */ err) {
@@ -330,7 +344,7 @@ module.exports = async function(/** @type {string} */ outputZip, /** @type {Arra
         throw err
     })
     
-    const output = fs.createWriteStream(outputZip)
+    const output = fs.createWriteStream(settings.outputZip)
     archive.pipe(output)
 
     for (const fileToArchive of filesToArchive) {
