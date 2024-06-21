@@ -2,6 +2,7 @@ const fs = require('fs')
 const path = require('path')
 const archiver = require('archiver')
 const Progress = require('./progress')
+const jimp = require('jimp')
 const utils = require('./utils')
 const crypto = require('crypto')
 const JSON5 = require('json5')
@@ -14,7 +15,18 @@ const { ResourcePackAny } = require('./pack')
  *   input: Array<string>
  *   compression?: number
  *   defaultPack?: ResourcePackAny
+ *   logWarnings?: boolean
  * }} CombineSettings
+ */
+
+/**
+ * @typedef {{
+ *   name: string
+ * } & ({
+ *   filePath: string
+ * } | {
+ *   data: string | Buffer
+ * })} Entry
  */
 
 module.exports = async function(/** @type {CombineSettings} */ settings) {
@@ -22,7 +34,7 @@ module.exports = async function(/** @type {CombineSettings} */ settings) {
     const removeCredits = true
     
     /**
-     * @type {Array<{ name: string; } & ({ filePath: string; } | { data: string; })>}
+     * @type {Array<Entry>}
      */
     const filesToArchive = [ ]
 
@@ -59,7 +71,32 @@ module.exports = async function(/** @type {CombineSettings} */ settings) {
         return result
     }
 
+    /**
+     * @param {Entry} entry
+     */
+    function pushEntry(entry) {
+        let overrided = false
+        for (let i = 0; i < filesToArchive.length; i++) {
+            const fileToArchive = filesToArchive[i]
+            if (fileToArchive.name !== entry.name) { continue }
+
+            filesToArchive[i] = entry
+            overrided = true
+
+            break
+        }
+        
+        if (!overrided) {
+            filesToArchive.push(entry)
+        }
+    }
+
     const sharedStart = utils.sharedStart(...settings.input)
+
+    /**
+     * @type {Array<string>}
+     */
+    const overlayedFiles = [ ]
 
     console.log('[Combine]: Combining files ...')
     for (const pack of settings.input) {
@@ -81,20 +118,85 @@ module.exports = async function(/** @type {CombineSettings} */ settings) {
             if (!fs.lstatSync(fullPath).isFile()) { continue }
             if (fileName === 'credits.txt') { continue }
 
-            let overrided = false
-            for (let i = 0; i < filesToArchive.length; i++) {
-                const fileToArchive = filesToArchive[i]
-                if (fileToArchive.name !== fileName) { continue }
-
-                filesToArchive[i] = { name: fileName, filePath: fullPath }
-                overrided = true
-
-                break
+            /*
+            if (overlayedFiles.includes(fullPath)) {
+                continue
             }
+
+            if (fileName.endsWith('.overlay.json')) {
+                const overlayInfo = JSON5.parse(fs.readFileSync(fullPath, 'utf8'))
+                let overlayPath = null
+                if (typeof overlayInfo === 'object') {
+                    if ('overlay' in overlayInfo && overlayInfo.overlay) {
+                        if (typeof overlayInfo.overlay === 'string') {
+                            overlayPath = path.join(path.dirname(fullPath), overlayInfo.overlay)
+                        }
+                    }
+                }
+
+                if (!overlayPath) {
+                    console.warn(`[Overlaying]: Invalid overlay in "${fullPath}"`)
+                    continue
+                }
+
+                const imagePath = fileName.substring(0, fileName.length - 13)
+                const imageFullPath = fullPath.substring(0, fullPath.length - 13)
+
+                if (!fs.existsSync(imageFullPath)) {
+                    console.warn(`[Overlaying]: Overlay base "${imageFullPath}" not found`)
+                    continue
+                }
             
-            if (!overrided) {
-                filesToArchive.push({ name: fileName, filePath: fullPath })
+                if (!fs.lstatSync(imageFullPath).isFile()) {
+                    console.warn(`[Overlaying]: Overlay base "${imageFullPath}" is not a file`)
+                    continue
+                }
+
+                if (fs.existsSync(imageFullPath + '.mcmeta')) {
+                    console.warn(`[Overlaying]: Overlay base "${imageFullPath}" is animated`)
+                    continue
+                }
+
+                if (!fs.existsSync(overlayPath)) {
+                    console.warn(`[Overlaying]: Overlay "${overlayPath}" not found`)
+                    continue
+                }
+
+                if (!fs.lstatSync(overlayPath).isFile()) {
+                    console.warn(`[Overlaying]: Overlay "${overlayPath}" is not a file`)
+                    continue
+                }
+
+                const baseImg = await jimp.read(imageFullPath)
+                const overlay = await jimp.read(overlayPath)
+
+                if (baseImg.getWidth() !== overlay.getWidth()) {
+                    console.warn(`[Overlaying]: Overlay (${overlay.getWidth()}) and base (${baseImg.getWidth()}) width doesn't match at "${overlayPath}"`)
+                    continue
+                }
+
+                const overlayAnimationPath = path.join(overlayPath + '.mcmeta')
+
+                if (fs.existsSync(overlayAnimationPath) && fs.lstatSync(overlayAnimationPath).isFile()) {
+                    const overlayAnimation = JSON5.parse(fs.readFileSync(overlayAnimationPath, 'utf8'))
+                    debugger
+                } else {
+                    if (baseImg.getHeight() !== overlay.getHeight()) {
+                        console.warn(`[Overlaying]: Overlay (${overlay.getHeight()}) and base (${baseImg.getHeight()}) height doesn't match at "${overlayPath}"`)
+                        continue
+                    }
+                    const newImg = new jimp(baseImg.getWidth(), baseImg.getHeight())
+                    newImg.blit(baseImg, 0, 0)
+                    newImg.blit(overlay, 0, 0)
+                    pushEntry({ name: imagePath, data: await newImg.getBufferAsync('image/png') })
+                    overlayedFiles.push(imageFullPath)
+                    overlayedFiles.push(overlayPath)
+                }
+                continue
             }
+            */
+
+            pushEntry({ name: fileName, filePath: fullPath })
         }
     }
 
@@ -142,10 +244,12 @@ module.exports = async function(/** @type {CombineSettings} */ settings) {
                             const _path = newVariantItem.model.includes(':') ? newVariantItem.model.split(':')[1] : newVariantItem.model
                             const newModelFullPath = path.join(pack, 'assets', namespace, 'models', _path)
                             if (!fs.existsSync(newModelFullPath + '.json')) {
-                                if (willFileExists(path.join('assets', namespace, 'models', _path + '.json'))) {
-                                    // console.log(`[Combine]: Model not found: "${(newModelFullPath + '.json').replace(sharedStart, '')}"`)
-                                } else {
-                                    console.warn(`[Combine]: Model not found: "${(newModelFullPath + '.json').replace(sharedStart, '')}"`)
+                                if (settings.logWarnings) {
+                                    if (willFileExists(path.join('assets', namespace, 'models', _path + '.json'))) {
+                                        // console.log(`[Combine]: Model not found: "${(newModelFullPath + '.json').replace(sharedStart, '')}"`)
+                                    } else {
+                                        console.warn(`[Combine]: Model not found: "${(newModelFullPath + '.json').replace(sharedStart, '')}"`)
+                                    }
                                 }
                                 continue
                             }
@@ -187,15 +291,17 @@ module.exports = async function(/** @type {CombineSettings} */ settings) {
             let overrided = false
             const data = JSON.stringify(blockstate, null, ' ')
 
-            if ('variants' in blockstate) {
-                for (const _variants of Object.values(blockstate.variants)) {
-                    const variants = Array.isArray(_variants) ? _variants : [ _variants ]
-                    for (const model of variants) {
-                        const namespace = model.model.includes(':') ? model.model.split(':')[0] : 'minecraft'
-                        const _path = model.model.includes(':') ? model.model.split(':')[1] : model.model
-                        const modelPath = path.join('assets', namespace, 'models', _path) + '.json'
-                        if (!willFileExists(modelPath)) {
-                            console.warn(`[Combine]: Model will not exists: "${modelPath}"`)
+            if (settings.logWarnings) {
+                if ('variants' in blockstate) {
+                    for (const _variants of Object.values(blockstate.variants)) {
+                        const variants = Array.isArray(_variants) ? _variants : [ _variants ]
+                        for (const model of variants) {
+                            const namespace = model.model.includes(':') ? model.model.split(':')[0] : 'minecraft'
+                            const _path = model.model.includes(':') ? model.model.split(':')[1] : model.model
+                            const modelPath = path.join('assets', namespace, 'models', _path) + '.json'
+                            if (!willFileExists(modelPath)) {
+                                console.warn(`[Combine]: Model will not exists: "${modelPath}"`)
+                            }
                         }
                     }
                 }
@@ -349,7 +455,8 @@ module.exports = async function(/** @type {CombineSettings} */ settings) {
 
     for (const fileToArchive of filesToArchive) {
         if ('filePath' in fileToArchive) {
-            if (compress && fileToArchive.filePath.endsWith('.json')) {
+            if (compress && fileToArchive.filePath.endsWith('.xcf')) {
+            } else if (compress && fileToArchive.filePath.endsWith('.json')) {
                 const content = fs.readFileSync(fileToArchive.filePath, 'utf8')
                 const parsedJson = JSON5.parse(content)
                 if (removeCredits) {
@@ -379,7 +486,7 @@ module.exports = async function(/** @type {CombineSettings} */ settings) {
         console.log(`[Archiving]: ${Progress.getPercentString(progress.entries.processed, progress.entries.total)}`)
     })
     archive.on('close', () => {
-        console.log(`[Archiving]: 100.00 %`)
+        console.log(`[Archiving]: Done`)
     })
 
     await archive.finalize()
