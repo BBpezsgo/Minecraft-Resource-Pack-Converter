@@ -80,6 +80,26 @@ module.exports = async function(/** @type {CombineSettings} */ settings) {
             const fileToArchive = filesToArchive[i]
             if (fileToArchive.name !== entry.name) { continue }
 
+            /*
+            {
+                const _old = ('filePath' in fileToArchive ? fileToArchive.filePath : null)?.replace(sharedStart, '')?.replace(/\\/g, '/')?.split('/')?.[0]
+                const _new = ('filePath' in entry ? entry.filePath : null)?.replace(sharedStart, '')?.replace(/\\/g, '/')?.split('/')?.[0]
+                if (_old) {
+                    if (_new) {
+                        console.log(`[Combine]: File overridden: "${entry.name}" ("${_old}" --> "${_new}")`)
+                    } else {
+                        console.log(`[Combine]: File overridden: "${entry.name}" ("${_old}" --> <data>)`)
+                    }
+                } else {
+                    if (_new) {
+                        console.log(`[Combine]: File overridden: "${entry.name}" (<data> --> "${_new}")`)
+                    } else {
+                        console.log(`[Combine]: File overridden: "${entry.name}" (<data> --> <data>)`)
+                    }
+                }
+            }
+            */
+
             filesToArchive[i] = entry
             overrided = true
 
@@ -89,6 +109,46 @@ module.exports = async function(/** @type {CombineSettings} */ settings) {
         if (!overrided) {
             filesToArchive.push(entry)
         }
+
+        return overrided
+    }
+
+    /**
+     * @param {Entry} entry
+     */
+    async function isChanged(entry) {
+        const defaultContent = settings.defaultPack?.getContent(entry.name)
+        if (!defaultContent) {
+            return true
+        }
+
+        if (entry.name.endsWith('.json') || entry.name.endsWith('.mcmeta')) {
+            const jsonA = JSON5.parse(defaultContent.toString('utf8'))
+            const jsonB = JSON5.parse('filePath' in entry ? fs.readFileSync(entry.filePath, 'utf8') : (typeof entry.data === 'string' ? entry.data : entry.data.toString('utf8')))
+            if (utils.deepEqual(jsonA, jsonB)) {
+                return false
+            }
+        } else if (entry.name.endsWith('.png')) {
+            const imgA = await jimp.read(defaultContent)
+            const imgB = 'filePath' in entry ? await jimp.read(entry.filePath) : (typeof entry.data === 'string' ? await jimp.read(Buffer.from(entry.data)) : await jimp.read(entry.data))
+
+            if (imgA.getWidth() !== imgB.getWidth()) { return true }
+            if (imgA.getHeight() !== imgB.getHeight()) { return true }
+            
+            const distance = jimp.distance(imgA, imgB)
+            if (distance !== 0) { return true }
+
+            const diff = jimp.diff(imgA, imgB, 0)
+            if (diff.percent !== 0) { return true }
+
+            return false
+        } else if (entry.name.endsWith('.fsh')) {
+        } else if (entry.name.endsWith('.vsh')) {
+        } else {
+            debugger
+        }
+
+        return true
     }
 
     const sharedStart = utils.sharedStart(...settings.input)
@@ -98,7 +158,7 @@ module.exports = async function(/** @type {CombineSettings} */ settings) {
      */
     const overlayedFiles = [ ]
 
-    console.log('[Combine]: Combining files ...')
+    console.log('[Combine]: Combining assets ...')
     for (const pack of settings.input) {
         if (!fs.existsSync(pack)) {
             console.warn(`[Combine]: Pack does not exists: "${pack}"`)
@@ -200,6 +260,7 @@ module.exports = async function(/** @type {CombineSettings} */ settings) {
         }
     }
 
+    console.log('[Combine]: Combining blockstates ...')
     {
         /**
          * @type {import('./basic').Map<string, import('./blockstate').Blockstate>}
@@ -223,17 +284,57 @@ module.exports = async function(/** @type {CombineSettings} */ settings) {
 
                 const blockstateName = fileName.substring(0, fileName.length - '.json'.length)
 
-                /** @type {import('./blockstate').Blockstate} */
-                const blockstate1 = JSON5.parse(fs.readFileSync(fullPath, 'utf8'))
+                /**
+                 * @param {import('./blockstate').Blockstate} blockstate
+                 * @param {boolean} force
+                 */
+                function normalizeBlockstateWeights(blockstate, force) {
+                    if (!('variants' in blockstate)) { return }
 
-                if (!(blockstateName in blockstates)) {
+                    for (const key in blockstate.variants) {
+                        const variant = blockstate.variants[key]
+                        if (!Array.isArray(variant)) { continue }
+                        let weights = [ ]
+                        let areTooBig = false
+                        for (let i = 0; i < variant.length; i++) {
+                            const weight = variant[i].weight ?? 1
+                            weights.push(weight)
+                            if (weight > 1) { areTooBig = true }
+                        }
+                        if (areTooBig || force) {
+                            const max = Math.max(...weights)
+                            weights = weights.map(v => v / max)
+                            for (let i = 0; i < variant.length; i++) {
+                                variant[i].weight = weights[i]
+                            }
+                        }
+                    }
+                }
+
+                /**
+                 * Current blockstate
+                 * @type {import('./blockstate').Blockstate}
+                 */
+                const blockstate1 = JSON5.parse(fs.readFileSync(fullPath, 'utf8'))
+                // normalizeBlockstateWeights(blockstate1, true)
+
+                /**
+                 * Saved blockstate
+                 */
+                const blockstate2 = blockstates[blockstateName]
+
+                if (!blockstate2) {
                     blockstates[blockstateName] = blockstate1
                     continue
                 }
-                
-                const blockstate2 = blockstates[blockstateName]
-                if ('variants' in blockstate2 &&
-                    'variants' in blockstate1) {
+
+                if ('variants' in blockstate2) {
+                    if (!('variants' in blockstate1)) {
+                        console.warn(`[Combine]: :(`)
+                        debugger
+                        continue
+                    }
+
                     /** @type {import('./blockstate').BlockstateVariants} */
                     const newBlockstate = JSON.parse(JSON.stringify(blockstate2))
                     for (const newVariantName in blockstate1.variants) {
@@ -255,12 +356,15 @@ module.exports = async function(/** @type {CombineSettings} */ settings) {
                             }
                             const suffix = '_' + nonceFilename(16)
                             newVariantItem.model += suffix
-                            filesToArchive.push({
+                            const overridden = pushEntry({
                                 name: path.join('assets', namespace, 'models', _path + suffix + '.json'),
                                 data: compress ?
                                     JSON.stringify(JSON5.parse(fs.readFileSync(newModelFullPath + '.json', 'utf8'))) :
                                     fs.readFileSync(newModelFullPath + '.json', 'utf8'),
                             })
+                            if (overridden) {
+                                console.warn(`[Combine]: Generated file doesn't have a unique value`)
+                            }
                         }
                         if (newVariantName in newBlockstate.variants) {
                             const newVariants = newBlockstate.variants[newVariantName]
@@ -278,9 +382,36 @@ module.exports = async function(/** @type {CombineSettings} */ settings) {
                             newBlockstate.variants[newVariantName] = newVariant
                         }
                     }
+
                     blockstates[blockstateName] = newBlockstate
                 } else {
                     console.warn(`[Combine]: :(`)
+                    debugger
+                }
+            }
+        }
+
+        // for (const name in blockstates) {
+        //     const blockstate = blockstates[name]
+        //     if (!('variants' in blockstate)) { continue }
+        //     for (const variantName in blockstate.variants) {
+        //         const variant = blockstate.variants[variantName]
+        //         if (!Array.isArray(variant)) { continue }
+        //         for (const model of variant) {
+        //             if (!model.weight) { continue }
+        //             if (model.weight === 0) { continue }
+        //             model.weight = Math.max(1, Math.round(model.weight * 100))
+        //         }
+        //     }
+        // }
+
+        if (settings.defaultPack) {
+            const ah = settings.defaultPack.namespaces['minecraft']
+            if (ah) {
+                for (const name in blockstates) {
+                    if (!ah.getContent(path.join('blockstates', name + '.json'))) {
+                        console.warn(`[Combine]: Default blockstate "${name}" not found`)
+                    }
                 }
             }
         }
@@ -288,8 +419,7 @@ module.exports = async function(/** @type {CombineSettings} */ settings) {
         for (const name in blockstates) {
             const blockstateFullPath = path.join('assets', 'minecraft', 'blockstates', name + '.json')
             const blockstate = blockstates[name]
-            let overrided = false
-            const data = JSON.stringify(blockstate, null, ' ')
+            const data = JSON.stringify(blockstate)
 
             if (settings.logWarnings) {
                 if ('variants' in blockstate) {
@@ -307,79 +437,101 @@ module.exports = async function(/** @type {CombineSettings} */ settings) {
                 }
             }
 
-            for (let i = 0; i < filesToArchive.length; i++) {
-                let fileToArchive = filesToArchive[i]
-                if (fileToArchive.name !== blockstateFullPath) { continue }
-                filesToArchive[i] = {
-                    name: fileToArchive.name,
-                    data: data,
-                }
-                overrided = true
-                break
-            }
-            
-            if (!overrided) {
-                filesToArchive.push({ name: blockstateFullPath, data: data })
-            }
+            pushEntry({ name: blockstateFullPath, data: data })
         }
     }
 
+    console.log('[Combine]: Combining langs ...')
     {
         /**
-         * @type {{ [lang: string]: { [key: string]: string } }}
+         * @type {{ [namespace: string]: { [lang: string]: import('./pack-types').Language } }}
          */
         const langs = { }
 
         for (const pack of settings.input) {
-            const langPath = path.join(pack, 'assets', 'minecraft', 'lang')
-            if (!fs.existsSync(langPath)) { continue }
-            if (!fs.lstatSync(langPath).isDirectory()) { continue }
+            const assetsPath = path.join(pack, 'assets')
+            const namespaces = fs.readdirSync(assetsPath)
+            for (const namespace of namespaces) {
+                const langPath = path.join(assetsPath, namespace, 'lang')
+                if (!fs.existsSync(langPath)) { continue }
+                if (!fs.lstatSync(langPath).isDirectory()) { continue }
+    
+                const content = fs.readdirSync(langPath, { encoding: 'utf8', recursive: false })
+    
+                for (const fileName of content) {
+                    const fullPath = path.join(langPath, fileName)
+                    if (!fs.lstatSync(fullPath).isFile()) { continue }
+                    if (!fileName.endsWith('.json')) { continue }
+    
+                    const langName = fileName.replace('.json', '')
+                    const rawLang = fs.readFileSync(fullPath, 'utf8')
+                    /** @type {import('./pack-types').Language} */
+                    const lang = JSON5.parse(rawLang)
 
-            const content = fs.readdirSync(langPath, { encoding: 'utf8', recursive: false })
-
-            for (const fileName of content) {
-                const fullPath = path.join(pack, 'assets', 'minecraft', 'lang', fileName)
-                if (!fs.lstatSync(fullPath).isFile()) { continue }
-                if (!fileName.endsWith('.json')) { continue }
-
-                const langName = fileName.replace('.json', '')
-                const rawLang = fs.readFileSync(fullPath, 'utf8')
-                /** @type {{ [key: string]: string }} */
-                const lang = JSON5.parse(rawLang)
-
-                if (langName in langs) {
-                    const oldLang = langs[langName]
-                    for (const key in lang) {
-                        oldLang[key] = lang[key]
+                    langs[namespace] ??= { }
+    
+                    if (langName in langs[namespace]) {
+                        const oldLang = langs[namespace][langName]
+                        for (const key in lang) {
+                            oldLang[key] = lang[key]
+                        }
+                    } else {
+                        langs[namespace][langName] = lang
                     }
-                } else {
-                    langs[langName] = lang
                 }
             }
         }
 
-        for (const name in langs) {
-            const item = path.join('assets', 'minecraft', 'lang', name + '.json')
-            let overrided = false
-            const data = JSON.stringify(langs[name], null, ' ')
-
-            for (let i = 0; i < filesToArchive.length; i++) {
-                let fileToArchive = filesToArchive[i]
-                if (fileToArchive.name !== item) { continue }
-                filesToArchive[i] = {
-                    name: fileToArchive.name,
-                    data: data,
+        for (const namespace in langs) {
+            const namespaceLangs = langs[namespace]
+            for (const lang in namespaceLangs) {
+                for (const key in namespaceLangs[lang]) {
+                    let value = namespaceLangs[lang][key]
+                    value = utils.insertStringVariables(value, v => {
+                        if (v.includes(':')) {
+                            const _namespace = v.split(':')[0]
+                            v = v.substring(_namespace.length)
+                            debugger
+                            const _namespaceLangs = langs[_namespace]
+                            for (const _langName in _namespaceLangs) {
+                                const _langs = _namespaceLangs[_langName]
+                                if (_langs[v]) {
+                                    return _langs[v]
+                                }
+                            }
+                        } else {
+                            for (const _langName in namespaceLangs) {
+                                const _langs = namespaceLangs[_langName]
+                                if (_langs[v]) {
+                                    return _langs[v]
+                                }
+                            }
+                            for (const _namespace in langs) {
+                                const _namespaceLangs = langs[_namespace]
+                                for (const _langName in _namespaceLangs) {
+                                    const _langs = _namespaceLangs[_langName]
+                                    if (_langs[v]) {
+                                        return _langs[v]
+                                    }
+                                }
+                            }
+                        }
+                    })
+                    namespaceLangs[lang][key] = value
                 }
-                overrided = true
-                break
             }
-            
-            if (!overrided) {
-                filesToArchive.push({ name: item, data: data })
+        }
+
+        for (const namespace in langs) {
+            for (const langName in langs[namespace]) {
+                const item = path.join('assets', namespace, 'lang', langName + '.json')
+                const data = JSON.stringify(langs[namespace][langName])
+                pushEntry({ name: item, data: data })
             }
         }
     }
 
+    console.log('[Combine]: Combining fonts ...')
     {
         /**
          * @type {{ [font: string]: import('./pack-types').Font }}
@@ -413,25 +565,30 @@ module.exports = async function(/** @type {CombineSettings} */ settings) {
 
         for (const name in fonts) {
             const item = path.join('assets', 'minecraft', 'font', name + '.json')
-            let overrided = false
-            const data = JSON.stringify(fonts[name], null, ' ')
+            const data = JSON.stringify(fonts[name])
 
-            for (let i = 0; i < filesToArchive.length; i++) {
-                let fileToArchive = filesToArchive[i]
-                if (fileToArchive.name !== item) { continue }
-                filesToArchive[i] = {
-                    name: fileToArchive.name,
-                    data: data,
-                }
-                overrided = true
-                break
-            }
-            
-            if (!overrided) {
-                filesToArchive.push({ name: item, data: data })
+            pushEntry({ name: item, data: data })
+        }
+    }
+
+    console.log('[Combine]: Removing unnecessary entries ...')
+    for (let i = filesToArchive.length - 1; i >= 0; i--) {
+        const fileToArchive = filesToArchive[i]
+        if (!(await isChanged(fileToArchive))) {
+            console.log(`[Combine]: Asset not changed`, fileToArchive)
+            filesToArchive.splice(i, 1)
+            continue
+        }
+
+        if ('filePath' in fileToArchive) {
+            if (compress && fileToArchive.filePath.endsWith('.xcf')) {
+                filesToArchive.splice(i, 1)
+                continue
             }
         }
     }
+
+    console.log('[Archiving]: ...')
 
     const archive = archiver('zip', {
         zlib: { level: settings.compression ?? 0 },
@@ -455,8 +612,7 @@ module.exports = async function(/** @type {CombineSettings} */ settings) {
 
     for (const fileToArchive of filesToArchive) {
         if ('filePath' in fileToArchive) {
-            if (compress && fileToArchive.filePath.endsWith('.xcf')) {
-            } else if (compress && fileToArchive.filePath.endsWith('.json')) {
+            if (compress && fileToArchive.filePath.endsWith('.json')) {
                 const content = fs.readFileSync(fileToArchive.filePath, 'utf8')
                 const parsedJson = JSON5.parse(content)
                 if (removeCredits) {

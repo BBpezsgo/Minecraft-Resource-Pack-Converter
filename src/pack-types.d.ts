@@ -206,3 +206,7 @@ export type Font = {
         }
     }>
 }
+
+export type Language = {
+    [key: string]: string
+}

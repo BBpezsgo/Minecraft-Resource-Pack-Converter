@@ -141,7 +141,7 @@ function prugeObject(obj) {
 
         return obj
     }
-    
+
     if (typeof obj === 'object') {
         const keys = Object.keys(obj)
         for (const key of keys) {
@@ -150,7 +150,7 @@ function prugeObject(obj) {
             obj[key] = prugeObject(value)
             if (!obj[key]) { delete obj[key] }
         }
-        
+
         if (Object.keys(obj).length === 0) {
             return undefined
         }
@@ -195,6 +195,72 @@ function sharedStart(...array) {
     return a1.substring(0, i)
 }
 
+/**
+ * @param {any} x
+ * @param {any} y
+ */
+function deepEqual(x, y) {
+    const ok = Object.keys
+    const tx = typeof x
+    const ty = typeof y
+    return x && y && tx === 'object' && tx === ty ? (
+        ok(x).length === ok(y).length &&
+        ok(x).every(key => deepEqual(x[key], y[key]))
+    ) : (x === y)
+}
+
+/**
+ * @param {string} string
+ * @param {{ [key: string]: any } | ((key: string) => any) } variables
+ */
+function insertStringVariables(string, variables) {
+    let index = -1
+    while ((index = string.indexOf('${')) !== -1) {
+        const prefix = string.substring(0, index)
+        const endIndex = string.indexOf('}', index)
+        const suffix = string.substring(endIndex + 1)
+        const variable = string.substring(index + 2, endIndex)
+        let value = undefined
+        if (typeof variables === 'function') {
+            value = variables(variable)
+        } else {
+            value = variables[variable]
+        }
+        if (!value) {
+            console.warn(`[Variables]: Variable "${variable}" not found`)
+        }
+        string = prefix + value + suffix
+    }
+    return string
+}
+
+/**
+ * Source: https://gist.github.com/cyphunk/6c255fa05dd30e69f438a930faeb53fe?permalink_comment_id=4459611#gistcomment-4459611
+ * @param {Array<number>} values
+ * @returns {Array<number>}
+ */
+function softmax(values) {
+    let max = -Infinity
+    for (let id = 0; id < values.length; id++) {
+        if (max < values[id]) {
+            max = values[id]
+        }
+    }
+    
+    let sumOfExp = 0
+    const result = []
+    for (let i = 0; i < values.length; i++) {
+        result[i] = Math.exp(values[i] - max)
+        sumOfExp += result[i]
+    }
+    
+    for (let i = 0; i < values.length; i++) {
+        result[i] = result[i] / sumOfExp
+    }
+
+    return result
+}
+
 module.exports = {
     capitalizeFirst,
     levenshteinDistance,
@@ -208,4 +274,7 @@ module.exports = {
     sleep,
     paths,
     sharedStart,
+    deepEqual,
+    insertStringVariables,
+    softmax,
 }
