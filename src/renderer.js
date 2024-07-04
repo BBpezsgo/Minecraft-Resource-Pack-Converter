@@ -5,12 +5,12 @@ const PNG = require("pngjs").PNG
 
 /**
  * @param {string | undefined} modelPath
- * @param {pack.ResourcePackAny} _pack
+ * @param {pack.ResourcePack} _pack
  */
 function modelStuff(modelPath, _pack) {
     if (!modelPath) { return null }
 
-    const modelData = _pack.getContent(modelPath)?.toString('utf8')
+    const modelData = _pack.getNamespace(modelPath)?.getModel(modelPath)
     if (!modelData) { return null }
 
     /** @type {import('./model').AnyModel} */
@@ -231,7 +231,7 @@ function rotateAboutPoint(obj, point, axis, theta, pointIsWorld = false) {
 /**
  * @template {readonly unknown[]} ArrayType
  * @typedef {ArrayType extends readonly (infer ElementType)[] ? ElementType : never} ArrayElement
- * @param {pack.ResourcePackAny} resourcePack
+ * @param {pack.ResourcePack} resourcePack
  * @param {import('./model').AnyModel} model
  * @param {number} width
  * @param {number} height

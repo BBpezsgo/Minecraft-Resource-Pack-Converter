@@ -1,4 +1,5 @@
 import { Map, PackStructure, Version } from './changes'
+import { Point } from './model'
 
 export type int = number
 export type float = number
@@ -26,12 +27,12 @@ export type McMeta = {
     /** Section for filtering out files from resource packs applied below this one. Any file that matches one of the patterns inside block will be treated as if it was not present in the pack at all. */
     filter?: {
         /** List of patterns */
-        block: {
+        block: Array<{
             /** A regular expression for the namespace of files to be filtered out. If unspecified, it applies to every namespace. */
             namespace: string
             /** A regular expression for the paths of files to be filtered out. If unspecified, it applies to every file. */
             path: string
-        }[]
+        }>
     }
 }
 
@@ -42,7 +43,7 @@ export type Sounds = {
         /** Translated as the subtitle of the sound if Show Subtitles is enabled ingame. Accepts formatting codes and displays them properly in-game. Optional. */
         subtitle: string
         /** The sound files this sound event uses. One of the listed sounds is randomly selected to play when this sound event is triggered. Optional. */
-        sounds: ({
+        sounds: Array<({
             /** The path to this sound file from the "namespace/sounds" folder (excluding the .ogg file extension). The namespace defaults to minecraft but it can be changed by prepending a namespace and separating it with a :. Uses forward slashes instead of backslashes. May instead be the name of another sound event (according to value of "type"). Note that sound file must have one channel (mono). */
             name: string
             /** The volume for playing this sound. Value is a decimal between 0.0 and 1.0. @default 1.0 */
@@ -59,7 +60,7 @@ export type Sounds = {
             preload: boolean = false
             /** Two values are available: "sound" and "event"; "sound" causes the value of "name" to be interpreted as the name of a file, while "event" causes the value of "name" to be interpreted as the name of an already defined event. @default "sound" */
             type: 'sound' | 'event' = 'sound'
-            } | string)[]
+            } | string)>
         // The path to a sound file from the "namespace/sounds" folder (excluding the .ogg file extension). Uses forward slashes. The namespace defaults to minecraft but it can be changed by prepending a namespace and separating it with a :.
         // A sound file. This Object is used only when the sound requires additional Strings.
     }
@@ -77,7 +78,7 @@ export type Animation = {
         /** Sets the default time for each frame in increments of one game tick. @default 1 */
         frametime: int = 1
         /** Contains a list of frames. Defaults to displaying all the frames from top to bottom. */
-        frames: (
+        frames: Array<(
             // A frame specifies a frame with additional data.
             {
                 /** A number corresponding to position of a frame from the top, with the top frame being 0. */
@@ -85,14 +86,14 @@ export type Animation = {
                 /** The time in ticks to show this frame, overriding "frametime" above. */
                 time: int
             } |
-                // A number corresponding to position of a frame from the top, with the top frame being 0.
-                number
-        )[]
+            // A number corresponding to position of a frame from the top, with the top frame being 0.
+            number
+        )>
     }
 }
 
 export type RegionalCompliancies = {
-    [/** Contains a list of warnings. Note that the key itself is an ISO 3166-1 alpha-3 region code determined by the device's locale setting. */ region: import('./iso3166').RegionCode]: {
+    [/** Contains a list of warnings. Note that the key itself is an ISO 3166-1 alpha-3 region code determined by the device's locale setting. */ region: import('./iso3166').RegionCode]: Array<{
         /** Optional. Defines how long should the game wait until showing this message in minutes. This can not be zero. */
         delay: int
         /** The time interval this message should be shown in minutes. This can not be zero. */
@@ -101,11 +102,11 @@ export type RegionalCompliancies = {
         title: string
         /** The translation identifier of the message. A slot is provided for the translation string, how many times this warning has been shown. */
         message: string
-    }[]
+    }>
 }
 
 export type Fonts = {
-    providers: (
+    providers: Array<(
         {
             type: 'bitmap'
             /** The resource location of the used file, starting from assets/minecraft/textures by default. Prefacing the location with <namespace>: changes the location to assets/<namespace>/textures. */
@@ -115,7 +116,7 @@ export type Fonts = {
             /** The ascent of the character, measured in pixels. This value adds a vertical shift to the displayed result. */
             ascent: int
             /** A list of strings containing the characters replaced by this provider, as well as their order within the texture. All elements must describe the same number of characters. The texture is split into one equally sized row for each element of this list. Each row is split into one equally sized character for each character within one list element. */
-            chars: string[]
+            chars: Array<string>
         } |
         /** @deprecated */
         {
@@ -126,7 +127,7 @@ export type Fonts = {
             /** The resource location of the TrueType/OpenType font file within assets/<namespace>/font. */
             file: string
             /** The distance by which the characters of this provider are shifted. */
-            shift: float[]
+            shift: Array<float>
             /** Font size to render at. */
             size: float
             /** Resolution to render at, increasing anti-aliasing factor. */
@@ -141,7 +142,7 @@ export type Fonts = {
                 [char: string]: float
             }
         }
-    )[]
+    )>
 }
 
 export type Texture = {
@@ -153,23 +154,6 @@ export type FileOrDirectory = string | Directory
 
 export type Directory = {
     [name: string]: FileOrDirectory
-}
-
-export type Model = ItemModel | GenericModel
-
-export type ItemModel = {
-    parent: "minecraft:item/generated"
-    textures: {
-        particle: string
-        layer0: string
-    }
-}
-
-export type GenericModel = {
-    parent: string
-    textures: {
-        [textureID: string]: string
-    }
 }
 
 export type VersionToPackFormatConverter = {
@@ -187,7 +171,7 @@ export type Font = {
         file: string
         height?: number
         ascent: number
-        chars: string[]
+        chars: Array<string>
     } | {
         type: 'legacy_unicode'
         sizes: string

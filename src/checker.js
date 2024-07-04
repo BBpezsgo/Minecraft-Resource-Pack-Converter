@@ -9,12 +9,12 @@ const Basic = require('./basic')
 /**
  * @param {import('./changes').Version} versionA
  * @param {import('./changes').Version} versionB
- * @param {string | Pack.ResourcePackFolder | null | undefined} packA
- * @param {string | Pack.ResourcePackFolder | null | undefined} packB
+ * @param {string | Pack.ResourcePack | null | undefined} packA
+ * @param {string | Pack.ResourcePack | null | undefined} packB
  */
 function checkFull(versionA, versionB, packA, packB) {
     if (typeof packA === 'string') {
-        const readedPack = new Pack.ResourcePackFolder(packA)
+        const readedPack = Pack.ResourcePack.loadFolder(packA)
         if (!readedPack) {
             throw new Error(`Failed to read resource pack "${packA}"`)
         }
@@ -22,18 +22,18 @@ function checkFull(versionA, versionB, packA, packB) {
     }
 
     if (typeof packB === 'string') {
-        const readedPack = new Pack.ResourcePackFolder(packB)
+        const readedPack = Pack.ResourcePack.loadFolder(packB)
         if (!readedPack) {
             throw new Error(`Failed to read resource pack "${packB}"`)
         }
         packB = readedPack
     }
 
-    const _packA = packA?.namespaces['minecraft']
+    const _packA = packA?.getNamespace('minecraft')
     if (!_packA) {
         throw new Error(`Default resource pack for version \"${versionA}\" does not exists or invalid`)
     }
-    const _packB = packB?.namespaces['minecraft']
+    const _packB = packB?.getNamespace('minecraft')
     if (!_packB) {
         throw new Error(`Default resource pack for version \"${versionB}\" does not exists or invalid`)
     }
@@ -52,49 +52,50 @@ function checkFull(versionA, versionB, packA, packB) {
     }
 
     const texturesA = {
-        item: _packA.getTextures(formatA < 4 ? 'items' : 'item') ?? {},
-        block: _packA.getTextures(formatA < 4 ? 'blocks' : 'block') ?? {},
-        entity: _packA.getFilesRecursive('textures', 'entity') ?? {},
-        gui: _packA.getFilesRecursive('textures', 'gui') ?? {},
+        item: _packA.getTextureNames(formatA < 4 ? 'items' : 'item') ?? {},
+        block: _packA.getTextureNames(formatA < 4 ? 'blocks' : 'block') ?? {},
+        entity: _packA.getTextureNames('entity') ?? {},
+        gui: _packA.getTextureNames('gui') ?? {},
     }
 
     const texturesB = {
-        item: _packB.getTextures(formatB < 4 ? 'items' : 'item') ?? {},
-        block: _packB.getTextures(formatB < 4 ? 'blocks' : 'block') ?? {},
-        entity: _packB.getFilesRecursive('textures', 'entity') ?? {},
-        gui: _packB.getFilesRecursive('textures', 'gui') ?? {},
+        item: _packB.getTextureNames(formatB < 4 ? 'items' : 'item') ?? {},
+        block: _packB.getTextureNames(formatB < 4 ? 'blocks' : 'block') ?? {},
+        entity: _packB.getTextureNames('entity') ?? {},
+        gui: _packB.getTextureNames('gui') ?? {},
     }
 
     const modelsA = {
-        item: _packA.getModels('item') ?? {},
-        block: _packA.getModels('block') ?? {},
+        item: _packA.getModelNames('item') ?? {},
+        block: _packA.getModelNames('block') ?? {},
     }
 
     const modelsB = {
-        item: _packB.getModels('item') ?? {},
-        block: _packB.getModels('block') ?? {},
+        item: _packB.getModelNames('item') ?? {},
+        block: _packB.getModelNames('block') ?? {},
     }
 
     const blockstatesA = []
     const blockstatesB = []
 
-    if (fs.existsSync(Path.join(_packA.path, 'blockstates'))) {
-        const _files = fs.readdirSync(Path.join(_packA.path, 'blockstates'))
-        for (const _file of _files) {
-            if (!_file.endsWith('.json')) { continue }
-            const name = _file.substring(0, _file.length - 5)
-            blockstatesA.push(name)
-        }
-    }
-
-    if (fs.existsSync(Path.join(_packB.path, 'blockstates'))) {
-        const _files = fs.readdirSync(Path.join(_packB.path, 'blockstates'))
-        for (const _file of _files) {
-            if (!_file.endsWith('.json')) { continue }
-            const name = _file.substring(0, _file.length - 5)
-            blockstatesB.push(name)
-        }
-    }
+    throw new Error('Not implemented')
+    // if (fs.existsSync(Path.join(_packA.path, 'blockstates'))) {
+    //     const _files = fs.readdirSync(Path.join(_packA.path, 'blockstates'))
+    //     for (const _file of _files) {
+    //         if (!_file.endsWith('.json')) { continue }
+    //         const name = _file.substring(0, _file.length - 5)
+    //         blockstatesA.push(name)
+    //     }
+    // }
+    // 
+    // if (fs.existsSync(Path.join(_packB.path, 'blockstates'))) {
+    //     const _files = fs.readdirSync(Path.join(_packB.path, 'blockstates'))
+    //     for (const _file of _files) {
+    //         if (!_file.endsWith('.json')) { continue }
+    //         const name = _file.substring(0, _file.length - 5)
+    //         blockstatesB.push(name)
+    //     }
+    // }
 
     const generatedResult = Changes.noChanges()
 
@@ -280,7 +281,7 @@ function checkFull(versionA, versionB, packA, packB) {
 }
 
 /**
- * @param {{ [version in Changes.Version]: string | Pack.ResourcePackFolder | null | undefined }} resourcePacks 
+ * @param {{ [version in Changes.Version]: string | Pack.ResourcePack | null | undefined }} resourcePacks 
  */
 function checkFullAll(resourcePacks) {
     /** @ts-ignore @type {Changes.Version[]} */

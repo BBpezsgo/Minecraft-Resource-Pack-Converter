@@ -214,6 +214,7 @@ function deepEqual(x, y) {
  * @param {{ [key: string]: any } | ((key: string) => any) } variables
  */
 function insertStringVariables(string, variables) {
+    if (typeof string !== 'string') { return string }
     let index = -1
     while ((index = string.indexOf('${')) !== -1) {
         const prefix = string.substring(0, index)

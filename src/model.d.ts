@@ -38,7 +38,7 @@ export type BlockModel = {
         particle?: Texture
         [id: string]: Texture | undefined
     }
-    elements?: ModelElement[]
+    elements?: Array<ModelElement>
     display?: {
         [display in DisplayType]?: {
             rotation: Point
@@ -58,7 +58,7 @@ export type ItemModel = {
         [id: `layer${number}` | string]: Texture | undefined
     }
     gui_light?: 'front' | 'side'
-    elements?: ModelElement[]
+    elements?: Array<ModelElement>
     display?: {
         [display in DisplayType]?: {
             rotation: Point

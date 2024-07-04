@@ -7,27 +7,21 @@ const utils = require('./utils')
 const crypto = require('crypto')
 const JSON5 = require('json5')
 const Properties = require('./properties-file')
-const { ResourcePackAny } = require('./pack')
+const { ResourcePack, AssetEntryUtils } = require('./pack')
 
 /**
  * @typedef {{
  *   outputZip: string
  *   input: Array<string>
  *   compression?: number
- *   defaultPack?: ResourcePackAny
+ *   defaultPack?: ResourcePack
  *   logWarnings?: boolean
+ *   removeUnchanged?: boolean
  * }} CombineSettings
  */
 
-/**
- * @typedef {{
- *   name: string
- * } & ({
- *   filePath: string
- * } | {
- *   data: string | Buffer
- * })} Entry
- */
+// /** @typedef {{ name: string } & ({ filePath: string } | { data: string | Buffer })} Entry */
+/** @typedef {import('./pack').NamedAssetEntry} Entry */
 
 module.exports = async function(/** @type {CombineSettings} */ settings) {
     const compress = true
@@ -48,7 +42,7 @@ module.exports = async function(/** @type {CombineSettings} */ settings) {
                 return true
             }
         }
-        if (settings.defaultPack && settings.defaultPack.getContent(filePath)) {
+        if (settings.defaultPack && settings.defaultPack.get(filePath, null)) {
             return true
         }
         return false
@@ -117,20 +111,20 @@ module.exports = async function(/** @type {CombineSettings} */ settings) {
      * @param {Entry} entry
      */
     async function isChanged(entry) {
-        const defaultContent = settings.defaultPack?.getContent(entry.name)
+        const defaultContent = settings.defaultPack?.get(entry.name, null)
         if (!defaultContent) {
             return true
         }
 
         if (entry.name.endsWith('.json') || entry.name.endsWith('.mcmeta')) {
-            const jsonA = JSON5.parse(defaultContent.toString('utf8'))
-            const jsonB = JSON5.parse('filePath' in entry ? fs.readFileSync(entry.filePath, 'utf8') : (typeof entry.data === 'string' ? entry.data : entry.data.toString('utf8')))
+            const jsonA = AssetEntryUtils.getJson(defaultContent)
+            const jsonB = AssetEntryUtils.getJson(entry)
             if (utils.deepEqual(jsonA, jsonB)) {
                 return false
             }
         } else if (entry.name.endsWith('.png')) {
-            const imgA = await jimp.read(defaultContent)
-            const imgB = 'filePath' in entry ? await jimp.read(entry.filePath) : (typeof entry.data === 'string' ? await jimp.read(Buffer.from(entry.data)) : await jimp.read(entry.data))
+            const imgA = await AssetEntryUtils.getImage(defaultContent)
+            const imgB = await AssetEntryUtils.getImage(entry)
 
             if (imgA.getWidth() !== imgB.getWidth()) { return true }
             if (imgA.getHeight() !== imgB.getHeight()) { return true }
@@ -256,7 +250,7 @@ module.exports = async function(/** @type {CombineSettings} */ settings) {
             }
             */
 
-            pushEntry({ name: fileName, filePath: fullPath })
+            pushEntry({ name: fileName, file: fullPath, type: 'ref' })
         }
     }
 
@@ -323,7 +317,7 @@ module.exports = async function(/** @type {CombineSettings} */ settings) {
                  */
                 const blockstate2 = blockstates[blockstateName]
 
-                if (!blockstate2) {
+                if (!blockstate2 || blockstate1['no_combine'] === true) {
                     blockstates[blockstateName] = blockstate1
                     continue
                 }
@@ -361,6 +355,7 @@ module.exports = async function(/** @type {CombineSettings} */ settings) {
                                 data: compress ?
                                     JSON.stringify(JSON5.parse(fs.readFileSync(newModelFullPath + '.json', 'utf8'))) :
                                     fs.readFileSync(newModelFullPath + '.json', 'utf8'),
+                                type: 'text',
                             })
                             if (overridden) {
                                 console.warn(`[Combine]: Generated file doesn't have a unique value`)
@@ -406,10 +401,10 @@ module.exports = async function(/** @type {CombineSettings} */ settings) {
         // }
 
         if (settings.defaultPack) {
-            const ah = settings.defaultPack.namespaces['minecraft']
+            const ah = settings.defaultPack.getNamespace('minecraft')
             if (ah) {
                 for (const name in blockstates) {
-                    if (!ah.getContent(path.join('blockstates', name + '.json'))) {
+                    if (!ah.get('blockstates', name + '.json')) {
                         console.warn(`[Combine]: Default blockstate "${name}" not found`)
                     }
                 }
@@ -437,7 +432,7 @@ module.exports = async function(/** @type {CombineSettings} */ settings) {
                 }
             }
 
-            pushEntry({ name: blockstateFullPath, data: data })
+            pushEntry({ name: blockstateFullPath, data: data, type: 'text' })
         }
     }
 
@@ -526,7 +521,7 @@ module.exports = async function(/** @type {CombineSettings} */ settings) {
             for (const langName in langs[namespace]) {
                 const item = path.join('assets', namespace, 'lang', langName + '.json')
                 const data = JSON.stringify(langs[namespace][langName])
-                pushEntry({ name: item, data: data })
+                pushEntry({ name: item, data: data, type: 'text' })
             }
         }
     }
@@ -567,21 +562,24 @@ module.exports = async function(/** @type {CombineSettings} */ settings) {
             const item = path.join('assets', 'minecraft', 'font', name + '.json')
             const data = JSON.stringify(fonts[name])
 
-            pushEntry({ name: item, data: data })
+            pushEntry({ name: item, data: data, type: 'text' })
         }
     }
 
     console.log('[Combine]: Removing unnecessary entries ...')
     for (let i = filesToArchive.length - 1; i >= 0; i--) {
         const fileToArchive = filesToArchive[i]
-        if (!(await isChanged(fileToArchive))) {
-            console.log(`[Combine]: Asset not changed`, fileToArchive)
-            filesToArchive.splice(i, 1)
-            continue
+
+        if (settings.removeUnchanged) {
+            if (!(await isChanged(fileToArchive))) {
+                console.log(`[Combine]: Asset not changed`, fileToArchive)
+                filesToArchive.splice(i, 1)
+                continue
+            }
         }
 
-        if ('filePath' in fileToArchive) {
-            if (compress && fileToArchive.filePath.endsWith('.xcf')) {
+        if (fileToArchive.type === 'ref') {
+            if (compress && fileToArchive.file.endsWith('.xcf')) {
                 filesToArchive.splice(i, 1)
                 continue
             }
@@ -611,26 +609,46 @@ module.exports = async function(/** @type {CombineSettings} */ settings) {
     archive.pipe(output)
 
     for (const fileToArchive of filesToArchive) {
-        if ('filePath' in fileToArchive) {
-            if (compress && fileToArchive.filePath.endsWith('.json')) {
-                const content = fs.readFileSync(fileToArchive.filePath, 'utf8')
-                const parsedJson = JSON5.parse(content)
-                if (removeCredits) {
-                    if ('credit' in parsedJson) { delete parsedJson.credit }
-                    if ('_comment' in parsedJson) { delete parsedJson._comment }
+        switch (fileToArchive.type) {
+            case 'ref': {
+                if (compress && fileToArchive.file.endsWith('.json')) {
+                    const content = fs.readFileSync(fileToArchive.file, 'utf8')
+                    const parsedJson = JSON5.parse(content)
+                    if (removeCredits) {
+                        if ('credit' in parsedJson) { delete parsedJson.credit }
+                        if ('_comment' in parsedJson) { delete parsedJson._comment }
+                    }
+                    const stringifiedJson = JSON.stringify(parsedJson)
+                    archive.append(stringifiedJson, { name: fileToArchive.name })
+                } else if (compress && fileToArchive.file.endsWith('.properties')) {
+                    const content = fs.readFileSync(fileToArchive.file, 'utf8')
+                    const parsedProperties = Properties.parse(content)
+                    const stringifiedProperties = Properties.stringify(parsedProperties)
+                    archive.append(stringifiedProperties, { name: fileToArchive.name })
+                } else {
+                    archive.file(fileToArchive.file, { name: fileToArchive.name })
                 }
-                const stringifiedJson = JSON.stringify(parsedJson)
-                archive.append(stringifiedJson, { name: fileToArchive.name })
-            } else if (compress && fileToArchive.filePath.endsWith('.properties')) {
-                const content = fs.readFileSync(fileToArchive.filePath, 'utf8')
-                const parsedProperties = Properties.parse(content)
-                const stringifiedProperties = Properties.stringify(parsedProperties)
-                archive.append(stringifiedProperties, { name: fileToArchive.name })
-            } else {
-                archive.file(fileToArchive.filePath, { name: fileToArchive.name })
+                break
             }
-        } else {
-            archive.append(fileToArchive.data, { name: fileToArchive.name })
+            case 'buffer': {
+                archive.append(fileToArchive.data, { name: fileToArchive.name })
+                break
+            }
+            case 'text': {
+                archive.append(fileToArchive.data, { name: fileToArchive.name })
+                break
+            }
+            case 'image': {
+                archive.append(await fileToArchive.data.getBufferAsync('image/png'), { name: fileToArchive.name })
+                break
+            }
+            case 'json': {
+                archive.append(JSON.stringify(fileToArchive.data), { name: fileToArchive.name })
+                break
+            }
+            default: {
+                throw new Error()
+            }
         }
     }
 
