@@ -8,6 +8,7 @@
         "json5": "^2.2.3",
         "node-stream-zip": "^1.15.0",
         "omggif": "^1.0.10",
+        "seedrandom": "^3.0.5",
         "three": "0.82.1",
         "three-software-renderer": "1.2.0"
     },

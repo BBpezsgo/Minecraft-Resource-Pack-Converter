@@ -1,5 +1,6 @@
 const fs = require('fs')
 const path = require('path')
+const crypto = require('crypto')
 
 /**
  * @param {string} text
@@ -262,6 +263,23 @@ function softmax(values) {
     return result
 }
 
+/**
+ * @param {number} length
+ */
+function nonceFilename(length) {
+    // 'a-z0-9/._-'
+    const validCharacters = 'abcdefghijklmnopqrstuvwxyz0123456789'
+    let result = ''
+    for (let i = 0; i < length; i++) {
+        const randomI = crypto.randomInt(validCharacters.length)
+        if (!validCharacters[randomI]) {
+            throw new Error('What?')
+        }
+        result += validCharacters[randomI]
+    }
+    return result
+}
+
 module.exports = {
     capitalizeFirst,
     levenshteinDistance,
@@ -278,4 +296,5 @@ module.exports = {
     deepEqual,
     insertStringVariables,
     softmax,
+    nonceFilename,
 }

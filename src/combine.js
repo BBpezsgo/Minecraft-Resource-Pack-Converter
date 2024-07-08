@@ -4,7 +4,6 @@ const archiver = require('archiver')
 const Progress = require('./progress')
 const jimp = require('jimp')
 const utils = require('./utils')
-const crypto = require('crypto')
 const JSON5 = require('json5')
 const Properties = require('./properties-file')
 const { ResourcePack, AssetEntryUtils } = require('./pack')
@@ -46,23 +45,6 @@ module.exports = async function(/** @type {CombineSettings} */ settings) {
             return true
         }
         return false
-    }
-
-    /**
-     * @param {number} length
-     */
-    function nonceFilename(length) {
-        // 'a-z0-9/._-'
-        const validCharacters = 'abcdefghijklmnopqrstuvwxyz0123456789._-'
-        let result = ''
-        for (let i = 0; i < length; i++) {
-            const randomI = crypto.randomInt(validCharacters.length)
-            if (!validCharacters[randomI]) {
-                throw new Error('What?')
-            }
-            result += validCharacters[randomI]
-        }
-        return result
     }
 
     /**
@@ -348,7 +330,7 @@ module.exports = async function(/** @type {CombineSettings} */ settings) {
                                 }
                                 continue
                             }
-                            const suffix = '_' + nonceFilename(16)
+                            const suffix = '_' + utils.nonceFilename(16)
                             newVariantItem.model += suffix
                             const overridden = pushEntry({
                                 name: path.join('assets', namespace, 'models', _path + suffix + '.json'),
@@ -445,6 +427,7 @@ module.exports = async function(/** @type {CombineSettings} */ settings) {
 
         for (const pack of settings.input) {
             const assetsPath = path.join(pack, 'assets')
+            if (!fs.existsSync(assetsPath)) { continue }
             const namespaces = fs.readdirSync(assetsPath)
             for (const namespace of namespaces) {
                 const langPath = path.join(assetsPath, namespace, 'lang')
@@ -569,6 +552,37 @@ module.exports = async function(/** @type {CombineSettings} */ settings) {
     console.log('[Combine]: Removing unnecessary entries ...')
     for (let i = filesToArchive.length - 1; i >= 0; i--) {
         const fileToArchive = filesToArchive[i]
+
+        switch (fileToArchive.type) {
+            case 'buffer':
+                if (fileToArchive.data.length === 0) {
+                    console.log(`[Combine]: Removed empty buffer file "${fileToArchive.name}"`)
+                    filesToArchive.splice(i, 1)
+                    continue
+                }
+                break
+            case 'json':
+                if (!fileToArchive.data) {
+                    console.log(`[Combine]: Removed empty json file "${fileToArchive.name}"`)
+                    filesToArchive.splice(i, 1)
+                    continue
+                }
+                break
+            case 'text':
+                if (!fileToArchive.data) {
+                    console.log(`[Combine]: Removed empty text file "${fileToArchive.name}"`)
+                    filesToArchive.splice(i, 1)
+                    continue
+                }
+                break
+            case 'ref':
+                if (fs.statSync(fileToArchive.file).size === 0) {
+                    console.log(`[Combine]: Removed empty file "${fileToArchive.file}"`)
+                    filesToArchive.splice(i, 1)
+                    continue
+                }
+                break
+        }
 
         if (settings.removeUnchanged) {
             if (!(await isChanged(fileToArchive))) {
