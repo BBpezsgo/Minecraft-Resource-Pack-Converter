@@ -48,6 +48,28 @@ module.exports = async function(/** @type {CombineSettings} */ settings) {
     }
 
     /**
+     * @param {Entry} oldEntry
+     * @param {Entry} newEntry
+     */
+    function getOverrideReadableText(oldEntry, newEntry) {
+        const _old = (oldEntry.type === 'ref' ? oldEntry.file : null)?.replace(sharedStart, '')?.replace(/\\/g, '/')?.split('/')?.[0]
+        const _new = (newEntry.type === 'ref' ? newEntry.file : null)?.replace(sharedStart, '')?.replace(/\\/g, '/')?.split('/')?.[0]
+        if (_old) {
+            if (_new) {
+                return `"${_old}" --> "${_new}"`
+            } else {
+                return `"${_old}" --> <data>`
+            }
+        } else {
+            if (_new) {
+                return `<data> --> "${_new}"`
+            } else {
+                return `<data> --> <data>`
+            }
+        }
+    }
+
+    /**
      * @param {Entry} entry
      */
     function pushEntry(entry) {
@@ -55,6 +77,10 @@ module.exports = async function(/** @type {CombineSettings} */ settings) {
         for (let i = 0; i < filesToArchive.length; i++) {
             const fileToArchive = filesToArchive[i]
             if (fileToArchive.name !== entry.name) { continue }
+
+            if (fileToArchive.name.startsWith('assets\\minecraft\\optifine')) {
+                console.warn(`[Combine]: Optifine combining not supported (${getOverrideReadableText(fileToArchive, entry)})`)
+            }
 
             /*
             {
