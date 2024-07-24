@@ -605,7 +605,7 @@ module.exports = async function(/** @type {CombineSettings} */ settings) {
                     filesToArchive.splice(i, 1)
                     continue
                 }
-                if (fileToArchive.file.endsWith('.old') + path.extname(fileToArchive.file)) {
+                if (fileToArchive.file.endsWith('.old' + path.extname(fileToArchive.file))) {
                     // console.log(`[Combine]: Removed old file "${fileToArchive.file}"`)
                     filesToArchive.splice(i, 1)
                     continue
