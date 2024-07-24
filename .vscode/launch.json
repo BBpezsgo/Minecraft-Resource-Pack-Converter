@@ -5,13 +5,14 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "type": "node",
+            "type": "bun",
             "request": "launch",
-            "name": "Launch Program",
-            "skipFiles": [
-                "<node_internals>/**"
-            ],
-            "program": "${workspaceFolder}\\test.js"
+            "name": "Launch",
+            "program": "./test.js",
+            "args": ["run"],
+            "stopOnEntry": false,
+            "internalConsoleOptions": "openOnSessionStart",
+            "runtime": "bun",
         }
     ]
 }

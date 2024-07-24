@@ -35,9 +35,9 @@ module.exports = async function(/** @type {CombineSettings} */ settings) {
      * @param {string} filePath
      */
     function willFileExists(filePath) {
-        filePath = filePath.replace(/\//g, '\\')
+        filePath = filePath.replace(/\\/g, '/')
         for (const fileToArchive of filesToArchive) {
-            if (fileToArchive.name.replace(/\//g, '\\') === filePath) {
+            if (fileToArchive.name.replace(/\\/g, '/') === filePath) {
                 return true
             }
         }
@@ -78,14 +78,13 @@ module.exports = async function(/** @type {CombineSettings} */ settings) {
             const fileToArchive = filesToArchive[i]
             if (fileToArchive.name !== entry.name) { continue }
 
-            if (fileToArchive.name.startsWith('assets\\minecraft\\optifine')) {
+            if (fileToArchive.name.startsWith('assets/minecraft/optifine')) {
                 console.warn(`[Combine]: Optifine combining not supported (${getOverrideReadableText(fileToArchive, entry)})`)
             }
 
-            /*
             {
-                const _old = ('filePath' in fileToArchive ? fileToArchive.filePath : null)?.replace(sharedStart, '')?.replace(/\\/g, '/')?.split('/')?.[0]
-                const _new = ('filePath' in entry ? entry.filePath : null)?.replace(sharedStart, '')?.replace(/\\/g, '/')?.split('/')?.[0]
+                const _old = (fileToArchive.type === 'ref' ? fileToArchive.file : null)?.replace(sharedStart, '')?.replace(/\\/g, '/')?.split('/')?.[0]
+                const _new = (entry.type === 'ref' ? entry.file : null)?.replace(sharedStart, '')?.replace(/\\/g, '/')?.split('/')?.[0]
                 if (_old) {
                     if (_new) {
                         console.log(`[Combine]: File overridden: "${entry.name}" ("${_old}" --> "${_new}")`)
@@ -100,7 +99,6 @@ module.exports = async function(/** @type {CombineSettings} */ settings) {
                     }
                 }
             }
-            */
 
             filesToArchive[i] = entry
             overrided = true
@@ -582,28 +580,33 @@ module.exports = async function(/** @type {CombineSettings} */ settings) {
         switch (fileToArchive.type) {
             case 'buffer':
                 if (fileToArchive.data.length === 0) {
-                    console.log(`[Combine]: Removed empty buffer file "${fileToArchive.name}"`)
+                    // console.log(`[Combine]: Removed empty buffer file "${fileToArchive.name}"`)
                     filesToArchive.splice(i, 1)
                     continue
                 }
                 break
             case 'json':
                 if (!fileToArchive.data) {
-                    console.log(`[Combine]: Removed empty json file "${fileToArchive.name}"`)
+                    // console.log(`[Combine]: Removed empty json file "${fileToArchive.name}"`)
                     filesToArchive.splice(i, 1)
                     continue
                 }
                 break
             case 'text':
                 if (!fileToArchive.data) {
-                    console.log(`[Combine]: Removed empty text file "${fileToArchive.name}"`)
+                    // console.log(`[Combine]: Removed empty text file "${fileToArchive.name}"`)
                     filesToArchive.splice(i, 1)
                     continue
                 }
                 break
             case 'ref':
                 if (fs.statSync(fileToArchive.file).size === 0) {
-                    console.log(`[Combine]: Removed empty file "${fileToArchive.file}"`)
+                    // console.log(`[Combine]: Removed empty file "${fileToArchive.file}"`)
+                    filesToArchive.splice(i, 1)
+                    continue
+                }
+                if (fileToArchive.file.endsWith('.old') + path.extname(fileToArchive.file)) {
+                    // console.log(`[Combine]: Removed old file "${fileToArchive.file}"`)
                     filesToArchive.splice(i, 1)
                     continue
                 }
@@ -692,13 +695,13 @@ module.exports = async function(/** @type {CombineSettings} */ settings) {
         }
     }
 
-    let lastProgressTime = performance.now()
-    archive.on('progress', (progress) => {
-        const now = performance.now()
-        if (now - lastProgressTime < 5000) { return }
-        lastProgressTime = now
-        console.log(`[Archiving]: ${Progress.getPercentString(progress.entries.processed, progress.entries.total)}`)
-    })
+    // let lastProgressTime = performance.now()
+    // archive.on('progress', (progress) => {
+    //     const now = performance.now()
+    //     if (now - lastProgressTime < 5000) { return }
+    //     lastProgressTime = now
+    //     console.log(`[Archiving]: ${Progress.getPercentString(progress.entries.processed, progress.entries.total)}`)
+    // })
     archive.on('close', () => {
         console.log(`[Archiving]: Done`)
     })
